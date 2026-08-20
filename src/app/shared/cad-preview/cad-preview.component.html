@@ -1,0 +1,32 @@
+<div class="cad-shell">
+  <div class="cad-toolbar">
+    <span>Visor DWG / BAK — zoom con la rueda del mouse</span>
+    <div class="cad-tools">
+      <button class="cad-tool" type="button" (click)="zoomOut()" title="Alejar">−</button>
+      <button class="cad-tool" type="button" (click)="resetZoom()">{{ zoomPercent() }}%</button>
+      <button class="cad-tool" type="button" (click)="zoomIn()" title="Acercar">+</button>
+      <a class="cad-open" [href]="downloadUrl() || fileUrl()" [download]="fileName()">Descargar</a>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="cad-fallback">
+      <p>Abriendo plano CAD…</p>
+    </div>
+  } @else if (svgHtml()) {
+    <div class="cad-stage" (wheel)="onWheel($event)">
+      <div class="cad-svg" [style.transform]="'scale(' + zoom() + ')'" [innerHTML]="svgHtml()"></div>
+    </div>
+  } @else if (thumbnailUrl(); as thumb) {
+    <div class="cad-stage cad-stage-thumb" (wheel)="onWheel($event)">
+      <img [src]="thumb" [alt]="fileName()" [style.transform]="'scale(' + zoom() + ')'" />
+    </div>
+  } @else {
+    <div class="cad-fallback">
+      <p>{{ error() || 'Este plano DWG/BAK no se pudo abrir en el visor. Descárgalo para abrirlo en AutoCAD.' }}</p>
+      <a class="btn btn-primary" [href]="downloadUrl() || fileUrl()" [download]="fileName()">
+        Descargar archivo
+      </a>
+    </div>
+  }
+</div>

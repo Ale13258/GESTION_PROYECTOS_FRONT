@@ -70,3 +70,31 @@ select {
 .session-meta strong {
   color: #0f2744;
 }
+
+input[type='password'] {
+  width: min(420px, 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  background: #fff;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.ok {
+  color: #047857;
+  font-size: 0.9rem;
+}
+
+.err {
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
+.session-panel h2,
+.stack h2 {
+  margin: 0 0 0.5rem;
+  color: #0f2744;
+  font-size: 1rem;
+}

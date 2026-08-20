@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { jsPDF } from 'jspdf';
 import { DataService } from '../../core/services/data.service';
 
@@ -9,6 +9,7 @@ import { DataService } from '../../core/services/data.service';
 })
 export class ReportsPage {
   readonly data = inject(DataService);
+  readonly exportError = signal('');
 
   readonly cityColors = ['#3b82c4', '#93c5fd', '#123a63'] as const;
 
@@ -110,7 +111,7 @@ export class ReportsPage {
     return `conic-gradient(${parts.join(', ')})`;
   }
 
-  exportExcel(): void {
+  async exportExcel(): Promise<void> {
     const eq = this.equipmentByProject();
     const quoted = this.quotedByProject();
     const time = this.analysisTime();
@@ -128,15 +129,11 @@ export class ReportsPage {
     const blob = new Blob(['\ufeff' + lines.join('\n')], {
       type: 'text/csv;charset=utf-8;',
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Reportes_ProManage.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    this.downloadBlob(blob, 'Reportes_ProManage.csv');
+    await this.persistReport(blob, 'Reportes_ProManage.csv');
   }
 
-  exportPdf(): void {
+  async exportPdf(): Promise<void> {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = 210;
     const margin = 14;
@@ -433,6 +430,28 @@ export class ReportsPage {
     doc.text('ProManage Engineering  |  Reportes ejecutivos', margin, 291);
     doc.text('Pagina 1 de 1', pageW - margin, 291, { align: 'right' });
 
+    const blob = doc.output('blob');
     doc.save('Reportes_ProManage.pdf');
+    await this.persistReport(blob, 'Reportes_ProManage.pdf');
+  }
+
+  private downloadBlob(blob: Blob, fileName: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private async persistReport(blob: Blob, fileName: string): Promise<void> {
+    this.exportError.set('');
+    try {
+      await this.data.addSystemFile('reportes', blob, fileName);
+    } catch (error) {
+      this.exportError.set(
+        error instanceof Error ? error.message : 'No se pudo guardar el reporte en Firebase.',
+      );
+    }
   }
 }

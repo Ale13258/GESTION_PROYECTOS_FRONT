@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { DataService } from '../../core/services/data.service';
 import { Equipment } from '../../core/models/promanage.models';
 
@@ -31,7 +31,9 @@ interface CompareRow {
 })
 export class ComparatorPage {
   readonly data = inject(DataService);
+  private readonly router = inject(Router);
   readonly filter = signal('');
+  readonly generateError = signal('');
 
   readonly selected = computed(() => this.data.getSelectedEquipment());
 
@@ -138,10 +140,22 @@ export class ComparatorPage {
     return this.data.selectedEquipmentIds().includes(id);
   }
 
+  async generateRequest(): Promise<void> {
+    this.generateError.set('');
+    const created = await this.data.addApprovalFromSelection();
+    if (!created) {
+      this.generateError.set(
+        'Elige los equipos (hasta 3) para armar la solicitud de aprobación del proyecto.',
+      );
+      return;
+    }
+    await this.router.navigate(['/aprobaciones'], { queryParams: { solicitud: created.id } });
+  }
+
   cellClass(row: CompareRow, equipment: Equipment): string {
     const list = this.selected();
     if (list.length < 2) return '';
-    const values = list.map((item) => row.numeric(item));
+    const values = list.map((item: Equipment) => row.numeric(item));
     const current = row.numeric(equipment);
     const best = row.higherIsBetter ? Math.max(...values) : Math.min(...values);
     const worst = row.higherIsBetter ? Math.min(...values) : Math.max(...values);

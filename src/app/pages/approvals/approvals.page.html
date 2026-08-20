@@ -2,13 +2,16 @@
   <div>
     <p class="eyebrow">Solicitudes de Aprobación</p>
     <h1>Solicitudes de Aprobación</h1>
-    <p>Formatos generados automáticamente desde las matrices comparativas</p>
+    <p>La solicitud se arma con los equipos elegidos en el comparador o la matriz, para que interventoría apruebe el proyecto.</p>
   </div>
   <button class="btn btn-primary gen-btn" type="button" (click)="generateNew()">
     <span class="plus" aria-hidden="true">+</span>
     Generar nueva solicitud
   </button>
 </section>
+@if (generateError()) {
+  <p class="file-error" style="margin: 0 0 1rem">{{ generateError() }}</p>
+}
 
 <section class="panel list-panel">
   <div class="table-wrap">
@@ -26,7 +29,7 @@
       <tbody>
         @for (item of requests(); track item.id) {
           <tr>
-            <td class="equip">{{ item.equipmentName }}</td>
+            <td class="equip">{{ equipmentNames(item) }}</td>
             <td>{{ item.projectName }}</td>
             <td>{{ item.requester }}</td>
             <td>
@@ -81,7 +84,11 @@
     <div class="modal-body printable" id="approval-doc">
       <div class="doc-header">
         <label class="logo-box">
-          <span>{{ logoName() }}</span>
+          @if (clientLogo()?.url) {
+            <img [src]="clientLogo()!.url" [alt]="clientLogo()!.name" />
+          } @else {
+            <span>{{ clientLogo()?.name || logoName() }}</span>
+          }
           <input type="file" accept="image/*" hidden (change)="onLogoChange($event)" />
         </label>
         <div class="doc-meta">
@@ -114,103 +121,97 @@
       </section>
 
       <section class="doc-section">
-        <h4>2. INFORMACIÓN DEL EQUIPO</h4>
-        <div class="kv-grid">
-          <div class="kv">
-            <span class="k">Equipo</span>
-            <span class="v">{{ req.equipmentName }}</span>
+        <h4>2. EQUIPOS ELEGIDOS PARA APROBACIÓN</h4>
+        @for (eq of requestEquipment(); track eq.id; let i = $index) {
+          <p class="muted" style="margin: 0 0 0.5rem">
+            Equipo {{ requestEquipment().length > 1 ? i + 1 + ' de ' + requestEquipment().length : '' }}
+          </p>
+          <div class="kv-grid">
+            <div class="kv">
+              <span class="k">Equipo</span>
+              <span class="v">{{ eq.name }}</span>
+            </div>
+            <div class="kv">
+              <span class="k">Categoría</span>
+              <span class="v">{{ eq.category || '—' }}</span>
+            </div>
+            <div class="kv">
+              <span class="k">Fabricante</span>
+              <span class="v">{{ eq.manufacturer || '—' }}</span>
+            </div>
+            <div class="kv">
+              <span class="k">Modelo</span>
+              <span class="v">{{ eq.model || '—' }}</span>
+            </div>
+            <div class="kv">
+              <span class="k">Proveedor</span>
+              <span class="v">{{ eq.supplier || '—' }}</span>
+            </div>
+            <div class="kv">
+              <span class="k">Precio</span>
+              <span class="v">{{ eq.price | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+            </div>
           </div>
-          <div class="kv">
-            <span class="k">Categoría</span>
-            <span class="v">{{ equipment()?.category || '—' }}</span>
+          <div class="info-block">
+            <div class="info-row">
+              <span class="k">Actividad</span>
+              <span class="v">{{ eq.proceso || 'Instalación y puesta en marcha del equipo propuesto' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="k">Descripción</span>
+              <span class="v">{{
+                eq.especificacionesTecnicas || eq.nota || 'Según especificaciones técnicas del contrato y matriz comparativa.'
+              }}</span>
+            </div>
+            <div class="info-row">
+              <span class="k">Proveedor / Fabricante propuesto</span>
+              <span class="v">{{ eq.supplier || '—' }} / {{ eq.manufacturer || '—' }}</span>
+            </div>
           </div>
-          <div class="kv">
-            <span class="k">Fabricante</span>
-            <span class="v">{{ equipment()?.manufacturer || '—' }}</span>
-          </div>
-          <div class="kv">
-            <span class="k">Modelo</span>
-            <span class="v">{{ equipment()?.model || '—' }}</span>
-          </div>
-          <div class="kv">
-            <span class="k">Proveedor</span>
-            <span class="v">{{ equipment()?.supplier || '—' }}</span>
-          </div>
-          <div class="kv">
-            <span class="k">Precio</span>
-            <span class="v">
-              @if (equipment(); as eq) {
-                {{ eq.price | currency: 'COP':'symbol-narrow':'1.0-0' }}
-              } @else {
-                —
-              }
-            </span>
-          </div>
-        </div>
-
-        <div class="info-block">
-          <div class="info-row">
-            <span class="k">Equipo a solicitar</span>
-            <span class="v">{{ equipment()?.name || req.equipmentName }}</span>
-          </div>
-          <div class="info-row">
-            <span class="k">Actividad</span>
-            <span class="v">{{ equipment()?.proceso || 'Instalación y puesta en marcha del equipo propuesto' }}</span>
-          </div>
-          <div class="info-row">
-            <span class="k">Descripción</span>
-            <span class="v">{{
-              equipment()?.especificacionesTecnicas ||
-                equipment()?.nota ||
-                'Según especificaciones técnicas del contrato y matriz comparativa.'
-            }}</span>
-          </div>
-          <div class="info-row">
-            <span class="k">Referencia / Especificaciones del contrato</span>
-            <span class="v">{{ contractCode() }}</span>
-          </div>
-          <div class="info-row">
-            <span class="k">Proveedor / Fabricante propuesto</span>
-            <span class="v">{{ equipment()?.supplier || '—' }} / {{ equipment()?.manufacturer || '—' }}</span>
-          </div>
-        </div>
+        } @empty {
+          <p>{{ equipmentLabel() }}</p>
+        }
       </section>
 
       <section class="doc-section">
         <h4>3. ESPECIFICACIONES TÉCNICAS</h4>
         <div class="kv-grid">
-          <div class="kv">
-            <span class="k">Caudal</span>
-            <span class="v">{{ equipment()?.specs?.caudal ?? '—' }} L/s</span>
-          </div>
-          <div class="kv">
-            <span class="k">Potencia</span>
-            <span class="v">{{ equipment()?.specs?.potencia ?? '—' }} kW</span>
-          </div>
-          <div class="kv">
-            <span class="k">Voltaje</span>
-            <span class="v">{{ equipment()?.specs?.voltaje ?? '—' }} V</span>
-          </div>
-          <div class="kv">
-            <span class="k">RPM</span>
-            <span class="v">{{ equipment()?.specs?.rpm ?? '—' }}</span>
-          </div>
-          <div class="kv">
-            <span class="k">Material</span>
-            <span class="v">{{ equipment()?.specs?.material ?? '—' }}</span>
-          </div>
-          <div class="kv">
-            <span class="k">Garantía</span>
-            <span class="v">{{ equipment()?.specs?.garantia ?? '—' }}</span>
-          </div>
-          <div class="kv">
-            <span class="k">Tiempo de entrega</span>
-            <span class="v">{{ equipment()?.specs?.entregaDias ?? '—' }} días</span>
-          </div>
-          <div class="kv">
-            <span class="k">Cumplimiento técnico</span>
-            <span class="v">{{ equipment()?.specs?.cumplimiento ?? '—' }}%</span>
-          </div>
+          @if (equipment(); as lead) {
+            <div class="kv">
+              <span class="k">Caudal</span>
+              <span class="v">{{ lead.specs.caudal }} L/s</span>
+            </div>
+            <div class="kv">
+              <span class="k">Potencia</span>
+              <span class="v">{{ lead.specs.potencia }} kW</span>
+            </div>
+            <div class="kv">
+              <span class="k">Voltaje</span>
+              <span class="v">{{ lead.specs.voltaje }} V</span>
+            </div>
+            <div class="kv">
+              <span class="k">RPM</span>
+              <span class="v">{{ lead.specs.rpm }}</span>
+            </div>
+            <div class="kv">
+              <span class="k">Material</span>
+              <span class="v">{{ lead.specs.material }}</span>
+            </div>
+            <div class="kv">
+              <span class="k">Garantía</span>
+              <span class="v">{{ lead.specs.garantia }}</span>
+            </div>
+            <div class="kv">
+              <span class="k">Tiempo de entrega</span>
+              <span class="v">{{ lead.specs.entregaDias }} días</span>
+            </div>
+            <div class="kv">
+              <span class="k">Cumplimiento técnico</span>
+              <span class="v">{{ lead.specs.cumplimiento }}%</span>
+            </div>
+          } @else {
+            <p>Sin equipo asociado.</p>
+          }
         </div>
 
         <h5>Características técnicas de las partes del equipo</h5>
@@ -322,6 +323,9 @@
     </div>
 
     <footer class="modal-foot no-print">
+      @if (fileError()) {
+        <p class="file-error">{{ fileError() }}</p>
+      }
       <button class="btn btn-secondary" type="button" (click)="closeDetail()">Cerrar</button>
       <button class="btn btn-secondary" type="button" (click)="export('word')">Exportar Word</button>
       <button class="btn btn-primary" type="button" (click)="export('pdf')">Exportar PDF</button>

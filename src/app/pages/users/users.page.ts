@@ -37,7 +37,7 @@ export class UsersPage {
     this.error.set('');
   }
 
-  createUser(): void {
+  async createUser(): Promise<void> {
     if (!this.auth.canManageUsers()) {
       this.error.set('No tienes permiso para crear usuarios.');
       return;
@@ -50,7 +50,7 @@ export class UsersPage {
       this.error.set('La contraseña debe tener al menos 6 caracteres.');
       return;
     }
-    const created = this.auth.addCollaborator(this.form);
+    const created = await this.auth.addCollaborator(this.form);
     if (!created) {
       this.error.set('No se pudo crear el usuario. Verifica que el correo no exista.');
       return;
@@ -58,7 +58,7 @@ export class UsersPage {
     this.closeModal();
   }
 
-  toggleActive(userId: string, active: boolean): void {
-    this.auth.setUserActive(userId, active);
+  async toggleActive(userId: string, active: boolean): Promise<void> {
+    await this.auth.setUserActive(userId, active);
   }
 }

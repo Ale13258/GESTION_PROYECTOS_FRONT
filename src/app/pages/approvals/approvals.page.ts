@@ -1,8 +1,9 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { jsPDF } from 'jspdf';
-import { ApprovalRequest, ApprovalStatus } from '../../core/models/promanage.models';
+import { ApprovalRequest, ApprovalStatus, DocumentItem, Equipment, EquipmentFile } from '../../core/models/promanage.models';
 import { DataService } from '../../core/services/data.service';
 
 type InterventoriaCode = 1 | 2 | 3 | 4 | 5 | null;
@@ -15,13 +16,25 @@ type InterventoriaCode = 1 | 2 | 3 | 4 | 5 | null;
 })
 export class ApprovalsPage {
   readonly data = inject(DataService);
+  private readonly route = inject(ActivatedRoute);
 
   readonly logoName = signal('LOGO DEL CLIENTE');
+  readonly fileError = signal('');
+  readonly generateError = signal('');
   readonly viewingId = signal<string | null>(null);
   readonly interventoriaCode = signal<InterventoriaCode>(null);
   readonly interventoriaComments = signal('');
   readonly reviewedBy = signal('Ing. Andrés Torres');
   readonly today = new Date();
+
+  constructor() {
+    this.route.queryParamMap.subscribe((params) => {
+      const id = params.get('solicitud');
+      if (!id) return;
+      const req = this.data.getApproval(id);
+      if (req) this.open(req);
+    });
+  }
 
   readonly requests = computed(() => this.data.approvals());
 
@@ -37,14 +50,27 @@ export class ApprovalsPage {
     return this.data.getProject(req.projectId);
   });
 
-  readonly equipment = computed(() => {
+  readonly clientLogo = computed((): DocumentItem | undefined => {
+    const projectId = this.project()?.id ?? this.activeRequest()?.projectId;
+    if (!projectId) return undefined;
+    return this.data.getDocumentsByProject(projectId, 'Logo cliente')[0];
+  });
+
+  readonly equipment = computed((): Equipment | null => this.requestEquipment()[0] ?? null);
+
+  readonly requestEquipment = computed((): Equipment[] => {
     const req = this.activeRequest();
-    if (!req) return null;
-    return (
-      this.data.equipment().find((e) => e.id === req.equipmentId) ??
-      this.data.equipment().find((e) => e.name === req.equipmentName) ??
-      null
-    );
+    if (!req) return [];
+    const ids = req.equipmentIds?.length ? req.equipmentIds : req.equipmentId ? [req.equipmentId] : [];
+    return ids
+      .map((id) => this.data.getEquipmentById(id))
+      .filter((item): item is Equipment => Boolean(item));
+  });
+
+  readonly equipmentLabel = computed(() => {
+    const names = this.requestEquipment().map((item) => item.name);
+    if (names.length) return names.join(', ');
+    return this.activeRequest()?.equipmentName || '—';
   });
 
   readonly docCode = computed(() => {
@@ -63,12 +89,18 @@ export class ApprovalsPage {
   });
 
   readonly recommendation = computed(() => {
-    const eq = this.equipment();
+    const items = this.requestEquipment();
     const project = this.project();
-    const name = eq?.name ?? this.activeRequest()?.equipmentName ?? 'el equipo seleccionado';
     const projectName = project?.name ?? this.activeRequest()?.projectName ?? 'el proyecto';
-    const compliance = eq?.specs.cumplimiento ?? 96;
-    return `El equipo ${name} cumple con los requerimientos técnicos del proyecto ${projectName}, presentando un cumplimiento técnico del ${compliance}% frente a las alternativas evaluadas en la matriz comparativa. Se recomienda su aprobación para continuar con el proceso de adquisición.`;
+    if (!items.length) {
+      return `Se recomienda aprobar los equipos elegidos para el proyecto ${projectName}, según la matriz comparativa.`;
+    }
+    if (items.length === 1) {
+      const eq = items[0];
+      return `El equipo ${eq.name} cumple con los requerimientos técnicos del proyecto ${projectName}, presentando un cumplimiento técnico del ${eq.specs.cumplimiento ?? 0}% frente a las alternativas evaluadas en la matriz comparativa. Se recomienda su aprobación para continuar con el proceso de adquisición.`;
+    }
+    const names = items.map((item) => item.name).join(', ');
+    return `Los equipos elegidos para el proyecto ${projectName} (${names}) se presentan para aprobación conjunta, según la comparación técnica realizada. Se recomienda su aprobación para continuar con el proceso de adquisición.`;
   });
 
   readonly techRows = computed(() => {
@@ -129,9 +161,16 @@ export class ApprovalsPage {
     { code: 5 as const, label: 'Sometido únicamente para información' },
   ];
 
-  generateNew(): void {
-    const created = this.data.addApprovalFromSelection();
-    if (created) this.open(created);
+  async generateNew(): Promise<void> {
+    this.generateError.set('');
+    const created = await this.data.addApprovalFromSelection();
+    if (!created) {
+      this.generateError.set(
+        'Elige primero los equipos en el comparador o la matriz (hasta 3). La solicitud se arma con esos equipos para aprobar el proyecto.',
+      );
+      return;
+    }
+    this.open(created);
   }
 
   view(request: ApprovalRequest): void {
@@ -163,9 +202,27 @@ export class ApprovalsPage {
     return value;
   }
 
-  onLogoChange(event: Event): void {
+  equipmentNames(request: ApprovalRequest): string {
+    const ids = request.equipmentIds?.length ? request.equipmentIds : [request.equipmentId];
+    const names = ids
+      .map((id) => this.data.getEquipmentById(id)?.name)
+      .filter((name): name is string => Boolean(name));
+    return names.join(', ') || request.equipmentName || '—';
+  }
+
+  async onLogoChange(event: Event): Promise<void> {
     const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) this.logoName.set(file.name);
+    const projectId = this.project()?.id ?? this.activeRequest()?.projectId;
+    if (!file || !projectId) return;
+    this.logoName.set(file.name);
+    this.fileError.set('');
+    try {
+      await this.data.replaceDocumentFile(projectId, 'Logo cliente', file);
+    } catch (error) {
+      this.fileError.set(
+        error instanceof Error ? error.message : 'No se pudo guardar el logo en Firebase.',
+      );
+    }
   }
 
   private buildExportData() {
@@ -191,18 +248,46 @@ export class ApprovalsPage {
     };
   }
 
-  export(format: 'pdf' | 'word'): void {
+  async export(format: 'pdf' | 'word'): Promise<void> {
     const data = this.buildExportData();
     if (!data) return;
 
+    const code = this.interventoriaCode();
+    if (code) {
+      await this.data.reviewApproval(data.request.id, {
+        code,
+        comments: this.interventoriaComments() || data.codeLabel,
+        reviewedBy: this.reviewedBy(),
+      });
+    }
+
     if (format === 'pdf') {
-      this.exportPdf(data);
+      const blob = this.exportPdf(data);
+      await this.persistGenerated(data, blob, `${data.fileBase}.pdf`);
       return;
     }
-    this.exportWord(data);
+    const blob = this.exportWord(data);
+    await this.persistGenerated(data, blob, `${data.fileBase}.doc`);
   }
 
-  private exportPdf(data: NonNullable<ReturnType<ApprovalsPage['buildExportData']>>): void {
+  private async persistGenerated(
+    data: NonNullable<ReturnType<ApprovalsPage['buildExportData']>>,
+    blob: Blob,
+    fileName: string,
+  ): Promise<void> {
+    const projectId = data.project?.id ?? data.request.projectId;
+    if (!projectId) return;
+    this.fileError.set('');
+    try {
+      await this.data.addGeneratedDocument(projectId, 'Solicitudes de Aprobación', blob, fileName);
+    } catch (error) {
+      this.fileError.set(
+        error instanceof Error ? error.message : 'No se pudo guardar el archivo en Firebase.',
+      );
+    }
+  }
+
+  private exportPdf(data: NonNullable<ReturnType<ApprovalsPage['buildExportData']>>): Blob {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = 210;
     const margin = 14;
@@ -284,11 +369,7 @@ export class ApprovalsPage {
       y += h + 3;
     };
 
-    const selectedEquipments = (() => {
-      const fromCompare = this.data.getSelectedEquipment();
-      if (fromCompare.length > 0) return fromCompare;
-      return data.equipment ? [data.equipment] : [];
-    })();
+    const selectedEquipments = this.requestEquipment();
 
     // Header
     doc.setFillColor(...navy);
@@ -444,7 +525,7 @@ export class ApprovalsPage {
 
       const docs =
         eq.files?.length > 0
-          ? eq.files.map((f) => f.typeLabel || f.name)
+          ? eq.files.map((f: EquipmentFile) => f.typeLabel || f.name)
           : ['Ficha tecnica', 'Plano del equipo', 'Cotizacion del proveedor'];
       title(total > 1 ? `DOCUMENTOS ADJUNTOS - Equipo ${index + 1}` : 'DOCUMENTOS ADJUNTOS');
       ensureSpace(12);
@@ -462,7 +543,7 @@ export class ApprovalsPage {
     };
 
     if (selectedEquipments.length > 0) {
-      selectedEquipments.forEach((eq, i) =>
+      selectedEquipments.forEach((eq: Equipment, i: number) =>
         renderEquipmentBlock(eq, i, selectedEquipments.length),
       );
     } else {
@@ -568,6 +649,7 @@ export class ApprovalsPage {
     }
 
     doc.save(`${data.fileBase}.pdf`);
+    return doc.output('blob');
   }
 
   private pdfSafe(text: string): string {
@@ -578,7 +660,28 @@ export class ApprovalsPage {
       .replace(/[‘’]/g, "'");
   }
 
-  private exportWord(data: NonNullable<ReturnType<ApprovalsPage['buildExportData']>>): void {
+  private exportWord(data: NonNullable<ReturnType<ApprovalsPage['buildExportData']>>): Blob {
+    const items = this.requestEquipment();
+    const equipmentBlocks = (items.length ? items : data.equipment ? [data.equipment] : [])
+      .map(
+        (eq, index, all) => `
+  <h2>${all.length > 1 ? `2.${index + 1}` : '2'}. INFORMACIÓN DEL EQUIPO${all.length > 1 ? ` (${index + 1}/${all.length})` : ''}</h2>
+  <p><b>Equipo:</b> ${eq.name}<br/>
+  <b>Categoría:</b> ${eq.category ?? '—'}<br/>
+  <b>Fabricante:</b> ${eq.manufacturer ?? '—'}<br/>
+  <b>Modelo:</b> ${eq.model ?? '—'}<br/>
+  <b>Proveedor:</b> ${eq.supplier ?? '—'}<br/>
+  <b>Precio:</b> $ ${eq.price.toLocaleString('es-CO')}</p>
+  <p><b>Caudal:</b> ${eq.specs.caudal ?? '—'} L/s ·
+  <b>Potencia:</b> ${eq.specs.potencia ?? '—'} kW ·
+  <b>Voltaje:</b> ${eq.specs.voltaje ?? '—'} V ·
+  <b>RPM:</b> ${eq.specs.rpm ?? '—'}<br/>
+  <b>Material:</b> ${eq.specs.material ?? '—'} ·
+  <b>Garantía:</b> ${eq.specs.garantia ?? '—'} ·
+  <b>Entrega:</b> ${eq.specs.entregaDias ?? '—'} días ·
+  <b>Cumplimiento:</b> ${eq.specs.cumplimiento ?? '—'}%</p>`,
+      )
+      .join('');
     const rows = this.techRows()
       .map(
         (r) =>
@@ -600,22 +703,8 @@ export class ApprovalsPage {
   <b>Contrato:</b> ${this.contractCode()}<br/>
   <b>Cliente:</b> ${data.project?.client ?? '—'}<br/>
   <b>Ubicación:</b> ${data.project?.location ?? '—'}</p>
-  <h2>2. INFORMACIÓN DEL EQUIPO</h2>
-  <p><b>Equipo:</b> ${data.eqName}<br/>
-  <b>Categoría:</b> ${data.equipment?.category ?? '—'}<br/>
-  <b>Fabricante:</b> ${data.equipment?.manufacturer ?? '—'}<br/>
-  <b>Modelo:</b> ${data.equipment?.model ?? '—'}<br/>
-  <b>Proveedor:</b> ${data.equipment?.supplier ?? '—'}<br/>
-  <b>Precio:</b> ${data.equipment ? `$ ${data.equipment.price.toLocaleString('es-CO')}` : '—'}</p>
+  ${equipmentBlocks || `<h2>2. INFORMACIÓN DEL EQUIPO</h2><p><b>Equipo:</b> ${data.eqName}</p>`}
   <h2>3. ESPECIFICACIONES TÉCNICAS</h2>
-  <p><b>Caudal:</b> ${data.equipment?.specs.caudal ?? '—'} L/s ·
-  <b>Potencia:</b> ${data.equipment?.specs.potencia ?? '—'} kW ·
-  <b>Voltaje:</b> ${data.equipment?.specs.voltaje ?? '—'} V ·
-  <b>RPM:</b> ${data.equipment?.specs.rpm ?? '—'}<br/>
-  <b>Material:</b> ${data.equipment?.specs.material ?? '—'} ·
-  <b>Garantía:</b> ${data.equipment?.specs.garantia ?? '—'} ·
-  <b>Entrega:</b> ${data.equipment?.specs.entregaDias ?? '—'} días ·
-  <b>Cumplimiento:</b> ${data.equipment?.specs.cumplimiento ?? '—'}%</p>
   <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse; width:100%;">
     <thead><tr><th>Característica técnica</th><th>Descripción</th><th>Material</th></tr></thead>
     <tbody>${rows}</tbody>
@@ -642,5 +731,6 @@ export class ApprovalsPage {
     a.download = `${data.fileBase}.doc`;
     a.click();
     URL.revokeObjectURL(url);
+    return blob;
   }
 }

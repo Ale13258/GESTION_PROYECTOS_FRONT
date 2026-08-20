@@ -24,6 +24,11 @@ export class QuotationsPage {
   readonly showModal = signal(false);
 
   form: NewQuotationForm = this.emptyForm();
+  selectedEquipmentId = '';
+
+  readonly equipmentOptions = computed(() =>
+    [...this.data.equipment()].sort((a, b) => a.name.localeCompare(b.name, 'es')),
+  );
 
   readonly groups = computed<QuoteGroup[]>(() => {
     const map = new Map<string, Quotation[]>();
@@ -71,7 +76,9 @@ export class QuotationsPage {
   emptyForm(): NewQuotationForm {
     return {
       projectId: this.data.projects()[0]?.id ?? '',
+      equipmentId: '',
       equipmentName: '',
+      supplierId: '',
       supplier: '',
       amount: 0,
       deliveryDays: 30,
@@ -82,6 +89,9 @@ export class QuotationsPage {
 
   openModal(): void {
     this.form = this.emptyForm();
+    this.selectedEquipmentId = '';
+    this.form.supplierId = '';
+    this.form.supplier = '';
     this.showModal.set(true);
   }
 
@@ -89,11 +99,32 @@ export class QuotationsPage {
     this.showModal.set(false);
   }
 
-  createQuotation(): void {
-    if (!this.form.equipmentName.trim() || !this.form.supplier.trim() || !this.form.projectId) {
+  onEquipmentChange(equipmentId: string): void {
+    this.selectedEquipmentId = equipmentId;
+    const equipment = this.data.equipment().find((item) => item.id === equipmentId);
+    if (!equipment) {
+      this.form.equipmentName = '';
       return;
     }
-    this.data.addQuotation(this.form);
+    this.form.equipmentName = equipment.name;
+    this.form.projectId = equipment.projectId;
+    this.form.equipmentId = equipment.id;
+  }
+
+  projectName(projectId: string): string {
+    return this.data.getProject(projectId)?.name ?? projectId;
+  }
+
+  onSupplierChange(supplierId: string): void {
+    this.form.supplierId = supplierId;
+    this.form.supplier = this.data.suppliers().find((s) => s.id === supplierId)?.name ?? '';
+  }
+
+  async createQuotation(): Promise<void> {
+    if (!this.form.equipmentId || !this.form.supplierId || !this.form.projectId) {
+      return;
+    }
+    await this.data.addQuotation(this.form);
     this.closeModal();
   }
 

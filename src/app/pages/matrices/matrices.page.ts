@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { DataService } from '../../core/services/data.service';
 import { Equipment } from '../../core/models/promanage.models';
 
@@ -25,14 +25,16 @@ interface CompareRow {
 
 @Component({
   selector: 'app-matrices-page',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule],
   templateUrl: './matrices.page.html',
   styleUrl: './matrices.page.scss',
 })
 export class MatricesPage {
   readonly data = inject(DataService);
+  private readonly router = inject(Router);
   readonly filter = signal('');
   readonly matrixReady = signal(false);
+  readonly generateError = signal('');
 
   readonly rows: CompareRow[] = [
     {
@@ -141,10 +143,15 @@ export class MatricesPage {
     return this.data.selectedEquipmentIds().includes(id);
   }
 
-  generateMatrix(): void {
-    if (this.selected().length >= 2) {
-      this.matrixReady.set(true);
-    }
+  async generateMatrix(): Promise<void> {
+    const selected = this.selected();
+    if (selected.length < 2) return;
+    this.matrixReady.set(true);
+    const projectId = selected[0].projectId;
+    await this.data.saveComparison(
+      projectId,
+      selected.map((e: Equipment) => e.id),
+    );
   }
 
   clearSelection(): void {
@@ -155,7 +162,7 @@ export class MatricesPage {
   cellClass(row: CompareRow, equipment: Equipment): string {
     const list = this.selected();
     if (list.length < 2) return '';
-    const values = list.map((item) => row.numeric(item));
+    const values = list.map((item: Equipment) => row.numeric(item));
     const current = row.numeric(equipment);
     const best = row.higherIsBetter ? Math.max(...values) : Math.min(...values);
     const worst = row.higherIsBetter ? Math.min(...values) : Math.max(...values);
@@ -179,5 +186,17 @@ export class MatricesPage {
 
   projectName(projectId: string): string {
     return this.data.getProject(projectId)?.name ?? projectId;
+  }
+
+  async generateRequest(): Promise<void> {
+    this.generateError.set('');
+    const created = await this.data.addApprovalFromSelection();
+    if (!created) {
+      this.generateError.set(
+        'Elige los equipos de la matriz para armar la solicitud de aprobación del proyecto.',
+      );
+      return;
+    }
+    await this.router.navigate(['/aprobaciones'], { queryParams: { solicitud: created.id } });
   }
 }

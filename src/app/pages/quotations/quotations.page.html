@@ -125,12 +125,24 @@
 
         <div class="field full">
           <label>Equipo</label>
-          <input [(ngModel)]="form.equipmentName" placeholder="Ej. Bomba Centrífuga HD-500" />
+          <select [ngModel]="selectedEquipmentId" (ngModelChange)="onEquipmentChange($event)">
+            <option value="">Selecciona un equipo del inventario</option>
+            @for (item of equipmentOptions(); track item.id) {
+              <option [value]="item.id">
+                {{ item.name }} · {{ projectName(item.projectId) }}
+              </option>
+            }
+          </select>
         </div>
 
         <div class="field full">
           <label>Proveedor</label>
-          <input [(ngModel)]="form.supplier" placeholder="Nombre del proveedor" />
+          <select [ngModel]="form.supplierId" (ngModelChange)="onSupplierChange($event)">
+            <option value="">Selecciona un proveedor</option>
+            @for (supplier of data.suppliers(); track supplier.id) {
+              <option [value]="supplier.id">{{ supplier.name }}</option>
+            }
+          </select>
         </div>
 
         <div class="field">
@@ -154,7 +166,7 @@
         <button
           class="btn btn-primary"
           type="button"
-          [disabled]="!form.equipmentName.trim() || !form.supplier.trim()"
+          [disabled]="!selectedEquipmentId || !form.supplierId"
           (click)="createQuotation()"
         >
           Guardar cotización

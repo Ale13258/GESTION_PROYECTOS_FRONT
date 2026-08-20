@@ -18,12 +18,15 @@
         <span class="material-symbols-outlined">compare</span>
         Comparador ({{ data.selectedEquipmentIds().length }}/3)
       </a>
-      <a class="btn btn-primary" routerLink="/aprobaciones">
+      <button class="btn btn-primary" type="button" (click)="generateRequest()">
         <span class="material-symbols-outlined">description</span>
         Generar Solicitud
-      </a>
+      </button>
     </div>
   </section>
+  @if (generateError()) {
+    <p class="budget-error">{{ generateError() }}</p>
+  }
 
   <div class="tabs">
     @for (tab of tabs; track tab.id) {
@@ -71,7 +74,27 @@
         </aside>
 
         <section class="panel">
-          <h2>📁 {{ docFolder() }}</h2>
+          <header class="docs-head">
+            <h2>📁 {{ docFolder() }}</h2>
+            <a class="btn btn-secondary" [routerLink]="['/documentos']" [queryParams]="{ proyecto: projectId() }">
+              Ver todos los documentos
+            </a>
+          </header>
+          <p class="muted">
+            En Firebase Storage abre <strong>proyectos</strong> y luego la carpeta con el nombre del
+            proyecto. Los documentos que estaban en la carpeta con el ID se mueven solos al entrar
+            a la app. Ejemplo: <code>proyectos/ptar-barranquilla--a1b2c3d4/planos</code>.
+          </p>
+          <p class="storage-path">
+            Ruta actual:
+            <code>{{ firebaseFolderPath() }}</code>
+          </p>
+          @if (docError()) {
+            <p class="budget-error">{{ docError() }}</p>
+          }
+          @if (docUploading()) {
+            <p class="muted">Subiendo a Firebase…</p>
+          }
           <div
             class="dropzone"
             [class.dragover]="dragOver()"
@@ -95,6 +118,7 @@
                   <th>Tipo</th>
                   <th>Tamaño</th>
                   <th>Actualizado</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -104,10 +128,18 @@
                     <td>{{ doc.type }}</td>
                     <td>{{ doc.size }}</td>
                     <td>{{ doc.updatedAt | date: 'mediumDate' }}</td>
+                    <td class="doc-actions">
+                      <button class="btn btn-secondary btn-ver" type="button" (click)="viewDocument(doc)">
+                        Ver
+                      </button>
+                      <button class="btn btn-ghost btn-ver" type="button" (click)="removeProjectDocument(doc)">
+                        Quitar
+                      </button>
+                    </td>
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="4" class="muted">No hay archivos en esta carpeta.</td>
+                    <td colspan="5" class="muted">No hay archivos en esta carpeta.</td>
                   </tr>
                 }
               </tbody>
@@ -178,6 +210,103 @@
           </tbody>
         </table>
       </div>
+    }
+
+    @case ('presupuesto') {
+      <article class="panel">
+        <header class="budget-head">
+          <div>
+            <h2>Presupuesto de obra</h2>
+            <p class="muted">
+              Sube el Excel de cantidad de obra (ítem de pago, descripción, cantidad y valores).
+              Se interpreta en esta vista y se relaciona con los equipos del proyecto.
+            </p>
+          </div>
+          <div class="row">
+            @if (budgetDocument()) {
+              <button class="btn btn-secondary" type="button" (click)="viewBudgetDocument()">
+                Ver archivo
+              </button>
+              <button class="btn btn-secondary" type="button" (click)="removeBudgetDocument()">
+                Quitar archivo
+              </button>
+            }
+            <label class="btn btn-primary">
+              Subir Excel
+              <input type="file" hidden accept=".xls,.xlsx,.csv" (change)="uploadProjectBudget($event)" />
+            </label>
+          </div>
+        </header>
+        @if (budgetDocument()) {
+          <p class="muted">Archivo: {{ budgetDocument()!.name }}</p>
+        }
+        @if (budgetError()) {
+          <p class="budget-error">{{ budgetError() }}</p>
+        }
+        @if (budgetLoading()) {
+          <p class="muted">Leyendo presupuesto…</p>
+        }
+      </article>
+
+      @if (parsedBudget(); as budget) {
+        <article class="panel budget-total-bar">
+          <span>TOTAL</span>
+          <strong>{{ formatMoney(budget.grandTotal) }}</strong>
+        </article>
+        @for (sheet of budget.sheets; track sheet.name) {
+          <article class="panel budget-sheet">
+            <h3>{{ sheet.name }} · {{ sheet.sourceName }}</h3>
+            <div class="table-wrap">
+              <table class="data-table budget-table">
+                <thead>
+                  <tr>
+                    @for (col of sheet.columns; track $index) {
+                      <th>{{ col }}</th>
+                    }
+                    <th>Equipo relacionado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of sheet.rows; track $index) {
+                    <tr [class]="'budget-' + line.kind">
+                      @for (cell of line.cells; track $index) {
+                        <td>{{ cell }}</td>
+                      }
+                      <td>
+                        @for (eq of line.relatedEquipment; track eq.id) {
+                          <button class="eq-chip" type="button" (click)="openRelatedEquipment(eq.id)">
+                            {{ eq.name }}
+                          </button>
+                        } @empty {
+                          <span class="muted">—</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr>
+                    @for (col of sheet.columns; track $index) {
+                      <td>
+                        @if ($index === 0) {
+                          TOTAL
+                        } @else if ($index === sheet.totalCol) {
+                          {{ formatMoney(sheet.total) }}
+                        }
+                      </td>
+                    }
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </article>
+        }
+      } @else if (!budgetLoading() && !budgetError()) {
+        <p class="muted">
+          Aún no hay un Excel de presupuesto. Usa “Subir Excel” con la hoja Presupuesto de obra civil.
+        </p>
+      }
     }
 
     @case ('proveedores') {
@@ -272,12 +401,21 @@
             Cambiar logo del cliente
             <input type="file" accept="image/*" hidden (change)="onLogoChange($event)" />
           </label>
-          <span class="muted">Logo actual: {{ clientLogoName() }}</span>
+          <span class="muted">Logo actual: {{ clientLogo()?.name || clientLogoName() }}</span>
         </div>
+        @if (docError()) {
+          <p class="budget-error">{{ docError() }}</p>
+        }
 
         <div class="doc-preview">
           <div class="doc-header">
-            <div class="logo-box">{{ clientLogoName() }}</div>
+            <div class="logo-box">
+              @if (clientLogo()?.url) {
+                <img [src]="clientLogo()!.url" [alt]="clientLogo()!.name" />
+              } @else {
+                {{ clientLogo()?.name || clientLogoName() }}
+              }
+            </div>
             <div>
               <h2>SOLICITUD DE APROBACIÓN DE EQUIPOS</h2>
               <p class="muted">Formato técnico generado automáticamente</p>
@@ -290,8 +428,7 @@
             <div><span class="muted">Ingeniero</span><strong>{{ project()!.engineer }}</strong></div>
           </div>
           <p style="margin-top: 1rem">
-            El sistema completa el formato con la información almacenada del proyecto y del equipo
-            seleccionado. Solo se permite ajustar el logo del cliente y datos puntuales del proyecto.
+            El sistema arma la solicitud con los equipos elegidos en el comparador para que interventoría apruebe el proyecto.
           </p>
           <div class="row" style="margin-top: 1rem">
             <button class="btn btn-primary" type="button" (click)="exportDocument('pdf')">
@@ -323,16 +460,84 @@
       <img [src]="eq.image" [alt]="eq.name" />
 
       <div class="spec-cards">
-        <article><span>CAUDAL</span><strong>{{ eq.specs.caudal }} L/s</strong></article>
-        <article><span>POTENCIA</span><strong>{{ eq.specs.potencia }} kW</strong></article>
-        <article><span>VOLTAJE</span><strong>{{ eq.specs.voltaje }} V</strong></article>
-        <article><span>RPM</span><strong>{{ eq.specs.rpm }}</strong></article>
-        <article><span>MATERIAL</span><strong>{{ eq.specs.material }}</strong></article>
-        <article><span>GARANTÍA</span><strong>{{ eq.specs.garantia }}</strong></article>
+        <label>
+          <span>CAUDAL</span>
+          <div class="spec-input">
+            <input type="text" [(ngModel)]="specDraft.caudal" placeholder="—" />
+            <em>L/s</em>
+          </div>
+        </label>
+        <label>
+          <span>POTENCIA</span>
+          <div class="spec-input">
+            <input type="number" [(ngModel)]="specDraft.potencia" placeholder="—" />
+            <em>kW</em>
+          </div>
+        </label>
+        <label>
+          <span>VOLTAJE</span>
+          <div class="spec-input">
+            <input type="text" [(ngModel)]="specDraft.voltaje" placeholder="—" />
+            <em>V</em>
+          </div>
+        </label>
+        <label>
+          <span>RPM</span>
+          <div class="spec-input">
+            <input type="number" [(ngModel)]="specDraft.rpm" placeholder="—" />
+          </div>
+        </label>
+        <label>
+          <span>MATERIAL</span>
+          <input type="text" [(ngModel)]="specDraft.material" placeholder="—" />
+        </label>
+        <label>
+          <span>GARANTÍA</span>
+          <input type="text" [(ngModel)]="specDraft.garantia" placeholder="—" />
+        </label>
+      </div>
+      <div class="spec-actions">
+        <button class="btn btn-primary" type="button" [disabled]="specSaving()" (click)="saveSpecs()">
+          {{ specSaving() ? 'Guardando…' : 'Guardar especificaciones' }}
+        </button>
+        @if (specSaved()) {
+          <span class="spec-ok">Guardado</span>
+        }
       </div>
 
       <div>
-        <h4>Archivos</h4>
+        <h4>Presupuesto</h4>
+        <p class="muted">Documento de presupuesto ligado a este equipo y a sus especificaciones.</p>
+        <div class="attach-panel">
+          <label class="drop-zone compact">
+            <input type="file" multiple hidden accept=".pdf,.xls,.xlsx,.doc,.docx" (change)="uploadBudget(eq, $event)" />
+            <strong>Subir presupuesto</strong>
+            <span>PDF, Excel o Word</span>
+          </label>
+          <ul class="eq-files">
+            @for (file of budgetFiles(eq); track file.id) {
+              <li>
+                <span class="file-tag">Presupuesto</span>
+                <div>
+                  <strong>{{ file.name }}</strong>
+                  <small>{{ file.size }}</small>
+                </div>
+                <button class="btn btn-secondary btn-ver" type="button" (click)="viewEquipmentFile(file, $event)">
+                  Ver
+                </button>
+                <button class="btn btn-ghost btn-ver" type="button" (click)="removeEquipmentFile(file, $event)">
+                  Quitar
+                </button>
+              </li>
+            } @empty {
+              <li class="muted empty-attach">Sin presupuesto adjunto</li>
+            }
+          </ul>
+        </div>
+      </div>
+
+      <div>
+        <h4>Archivos técnicos</h4>
         <div class="attach-panel">
           <div class="type-chips">
             @for (cat of fileCategories; track cat.value) {
@@ -352,13 +557,19 @@
             <span>Selecciona el tipo y haz clic aquí</span>
           </label>
           <ul class="eq-files">
-            @for (file of eq.files; track file.id) {
+            @for (file of technicalFiles(eq); track file.id) {
               <li>
                 <span class="file-tag">{{ file.typeLabel }}</span>
                 <div>
                   <strong>{{ file.name }}</strong>
                   <small>{{ file.size }}</small>
                 </div>
+                <button class="btn btn-secondary btn-ver" type="button" (click)="viewEquipmentFile(file, $event)">
+                  Ver
+                </button>
+                <button class="btn btn-ghost btn-ver" type="button" (click)="removeEquipmentFile(file, $event)">
+                  Quitar
+                </button>
               </li>
             } @empty {
               <li class="muted empty-attach">Sin archivos adjuntos</li>
@@ -380,4 +591,43 @@
       </button>
     </div>
   </aside>
+}
+
+@if (previewLoading()) {
+  <div class="preview-backdrop">
+    <p class="preview-loading">Abriendo archivo…</p>
+  </div>
+}
+
+@if (preview(); as file) {
+  <div class="preview-backdrop" (click)="closePreview()">
+    <div class="preview-modal" (click)="$event.stopPropagation()">
+      <header>
+        <strong>{{ file.name }}</strong>
+        <button class="btn btn-ghost" type="button" (click)="closePreview()">Cerrar</button>
+      </header>
+      @if (file.kind === 'image') {
+        <img [src]="file.url" [alt]="file.name" />
+      } @else if (file.kind === 'pdf') {
+        <iframe [src]="file.safeUrl" [title]="file.name"></iframe>
+      } @else if (file.kind === 'cad') {
+        <app-cad-preview
+          [fileUrl]="file.url"
+          [fileName]="file.name"
+          [downloadUrl]="file.url"
+        />
+      } @else if (file.kind === 'spreadsheet') {
+        <app-spreadsheet-preview
+          [fileUrl]="file.url"
+          [fileName]="file.name"
+          [downloadUrl]="file.url"
+        />
+      } @else {
+        <div class="preview-fallback">
+          <p class="muted">Este tipo de archivo no se puede previsualizar en el visor.</p>
+          <a class="btn btn-primary" [href]="file.url" [download]="file.name">Descargar</a>
+        </div>
+      }
+    </div>
+  </div>
 }

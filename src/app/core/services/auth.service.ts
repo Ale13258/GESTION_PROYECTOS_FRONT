@@ -1,10 +1,14 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   AppPermission,
   AppUser,
   NewUserForm,
   UserRole,
 } from '../models/promanage.models';
+import { ApiService } from '../api/api.service';
+import { apiErrorCode } from '../api/http-error';
+import { AuthUserDto, LoginResponse, mapUser } from '../api/mappers';
+import { TokenStore } from '../api/token.store';
 
 const ALL_PERMISSIONS: AppPermission[] = [
   'manageUsers',
@@ -24,46 +28,20 @@ const COLLABORATOR_PERMISSIONS: AppPermission[] = ALL_PERMISSIONS.filter(
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly usersSignal = signal<AppUser[]>([
-    {
-      id: 'u-admin',
-      name: 'Andrés Torres',
-      email: 'andres.torres@promanage.co',
-      role: 'admin',
-      title: 'Administrador del sistema',
-      active: true,
-      createdAt: '2026-01-10',
-      createdBy: 'Sistema',
-    },
-    {
-      id: 'u2',
-      name: 'Laura Restrepo',
-      email: 'laura.restrepo@promanage.co',
-      role: 'collaborator',
-      title: 'Ingeniera de Proyectos',
-      active: true,
-      createdAt: '2026-02-01',
-      createdBy: 'Andrés Torres',
-    },
-    {
-      id: 'u3',
-      name: 'Carlos Mejía',
-      email: 'carlos.mejia@promanage.co',
-      role: 'collaborator',
-      title: 'Ingeniero de Compras',
-      active: true,
-      createdAt: '2026-02-18',
-      createdBy: 'Andrés Torres',
-    },
-  ]);
+  private readonly api = inject(ApiService);
+  private readonly tokens = inject(TokenStore);
 
-  private readonly currentUserId = signal('u-admin');
+  private readonly usersSignal = signal<AppUser[]>([]);
+  private readonly currentUserSignal = signal<AppUser | null>(null);
+  private readonly permissionsSignal = signal<AppPermission[]>([]);
+  private sessionPromise: Promise<boolean> | null = null;
 
   readonly users = this.usersSignal.asReadonly();
+  readonly currentUser = this.currentUserSignal.asReadonly();
 
-  readonly currentUser = computed(() => {
-    const id = this.currentUserId();
-    return this.usersSignal().find((u) => u.id === id) ?? this.usersSignal()[0];
+  readonly isAuthenticated = computed(() => {
+    const user = this.currentUserSignal();
+    return !!user?.active;
   });
 
   readonly canManageUsers = computed(() => this.hasPermission('manageUsers'));
@@ -92,8 +70,10 @@ export class AuthService {
   }
 
   hasPermission(permission: AppPermission): boolean {
-    const user = this.currentUser();
+    const user = this.currentUserSignal();
     if (!user?.active) return false;
+    const fromApi = this.permissionsSignal();
+    if (fromApi.length) return fromApi.includes(permission);
     return this.permissionsFor(user.role).includes(permission);
   }
 
@@ -104,38 +84,106 @@ export class AuthService {
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
 
-  setCurrentUser(userId: string): void {
-    if (this.usersSignal().some((u) => u.id === userId)) {
-      this.currentUserId.set(userId);
+  async ensureSession(): Promise<boolean> {
+    if (this.currentUserSignal()) return true;
+    if (!this.tokens.accessToken() && !this.tokens.refreshToken()) return false;
+    if (!this.sessionPromise) {
+      this.sessionPromise = this.restoreSession().finally(() => {
+        this.sessionPromise = null;
+      });
+    }
+    return this.sessionPromise;
+  }
+
+  async login(
+    email: string,
+    password: string,
+  ): Promise<{ ok: true } | { ok: false; reason: 'invalid' | 'inactive' | 'network' }> {
+    try {
+      const session = await this.api.post<LoginResponse>(
+        '/auth/login',
+        { email: email.trim().toLowerCase(), password },
+        true,
+      );
+      this.applySession(session);
+      await this.refreshUsers().catch(() => undefined);
+      return { ok: true };
+    } catch (error) {
+      const code = apiErrorCode(error);
+      if (code === 'USER_INACTIVE') return { ok: false, reason: 'inactive' };
+      if (code === 'INVALID_CREDENTIALS') return { ok: false, reason: 'invalid' };
+      return { ok: false, reason: 'network' };
     }
   }
 
-  addCollaborator(form: NewUserForm): AppUser | null {
-    if (!this.canManageUsers()) return null;
-    const name = form.name.trim();
-    const email = form.email.trim().toLowerCase();
-    if (!name || !email) return null;
-    if (this.usersSignal().some((u) => u.email === email)) return null;
-
-    const created: AppUser = {
-      id: `u${Date.now()}`,
-      name,
-      email,
-      role: 'collaborator',
-      title: form.title.trim() || 'Colaborador',
-      active: true,
-      createdAt: new Date().toISOString().slice(0, 10),
-      createdBy: this.currentUser()?.name ?? 'Admin',
-    };
-    this.usersSignal.update((list) => [created, ...list]);
-    return created;
+  async logout(): Promise<void> {
+    const refreshToken = this.tokens.refreshToken();
+    try {
+      await this.api.post('/auth/logout', { refreshToken });
+    } catch {
+      /* ignore */
+    }
+    this.tokens.clear();
+    this.currentUserSignal.set(null);
+    this.permissionsSignal.set([]);
+    this.usersSignal.set([]);
   }
 
-  setUserActive(userId: string, active: boolean): void {
+  async refreshUsers(): Promise<void> {
+    const rows = await this.api.listAll<AuthUserDto>('/users');
+    this.usersSignal.set(rows.map(mapUser));
+  }
+
+  async addCollaborator(form: NewUserForm): Promise<AppUser | null> {
+    if (!this.canManageUsers()) return null;
+    try {
+      const created = await this.api.post<AuthUserDto>('/users', {
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        title: form.title.trim() || undefined,
+        password: form.password.trim(),
+      });
+      const user = mapUser(created);
+      this.usersSignal.update((list) => [user, ...list]);
+      return user;
+    } catch {
+      return null;
+    }
+  }
+
+  async setUserActive(userId: string, active: boolean): Promise<void> {
     if (!this.canManageUsers()) return;
-    if (userId === this.currentUser()?.id) return;
+    if (userId === this.currentUserSignal()?.id) return;
+    await this.api.patch(`/users/${userId}/active`, { active });
     this.usersSignal.update((list) =>
-      list.map((u) => (u.id === userId && u.role !== 'admin' ? { ...u, active } : u)),
+      list.map((u) => (u.id === userId ? { ...u, active } : u)),
     );
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await this.api.post('/auth/change-password', { currentPassword, newPassword });
+  }
+
+  private async restoreSession(): Promise<boolean> {
+    try {
+      const me = await this.api.get<AuthUserDto>('/auth/me');
+      this.setUser(me);
+      await this.refreshUsers().catch(() => undefined);
+      return true;
+    } catch {
+      this.tokens.clear();
+      this.currentUserSignal.set(null);
+      return false;
+    }
+  }
+
+  private applySession(session: LoginResponse): void {
+    this.tokens.set(session.accessToken, session.refreshToken);
+    this.setUser(session.user);
+  }
+
+  private setUser(dto: AuthUserDto): void {
+    this.currentUserSignal.set(mapUser(dto));
+    this.permissionsSignal.set(dto.permissions?.length ? dto.permissions : this.permissionsFor(dto.role));
   }
 }

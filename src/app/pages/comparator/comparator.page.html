@@ -8,15 +8,19 @@
     <button class="btn btn-secondary" type="button" (click)="data.clearCompareSelection()">
       Limpiar selección
     </button>
-    <a
+    <button
       class="btn btn-primary"
-      routerLink="/aprobaciones"
-      [class.disabled]="selected().length === 0"
+      type="button"
+      [disabled]="selected().length === 0"
+      (click)="generateRequest()"
     >
       Generar Solicitud
-    </a>
+    </button>
   </div>
 </section>
+@if (generateError()) {
+  <p class="compare-error">{{ generateError() }}</p>
+}
 
 <section class="panel">
   <div class="toolbar">

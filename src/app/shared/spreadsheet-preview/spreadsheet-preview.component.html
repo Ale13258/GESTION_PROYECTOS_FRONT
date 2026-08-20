@@ -1,0 +1,66 @@
+<div class="sheet-shell">
+  <div class="sheet-toolbar">
+    <span>Visor XLSX / XLS / CSV</span>
+    <a class="sheet-open" [href]="downloadUrl() || fileUrl()" [download]="fileName()">Descargar</a>
+  </div>
+
+  @if (sheetNames().length > 1) {
+    <div class="sheet-tabs">
+      @for (name of sheetNames(); track name) {
+        <button
+          type="button"
+          class="sheet-tab"
+          [class.active]="activeSheet() === name"
+          (click)="selectSheet(name)"
+        >
+          {{ name }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="sheet-fallback">
+      <p>Abriendo Excel…</p>
+    </div>
+  } @else if (error()) {
+    <div class="sheet-fallback">
+      <p>{{ error() }}</p>
+      <a class="btn btn-primary" [href]="downloadUrl() || fileUrl()" [download]="fileName()">
+        Descargar archivo
+      </a>
+    </div>
+  } @else {
+    @if (truncated()) {
+      <p class="sheet-note">Se muestran las primeras {{ rows().length }} filas para mantener el visor ágil.</p>
+    }
+    <div class="sheet-scroll">
+      <table class="sheet-table">
+        <thead>
+          @if (rows()[0]; as header) {
+            <tr>
+              <th class="row-index"></th>
+              @for (cell of header; track $index) {
+                <th>{{ colLabel($index) }}</th>
+              }
+            </tr>
+          }
+        </thead>
+        <tbody>
+          @for (row of rows(); track $index; let rowIndex = $index) {
+            <tr [class.header-row]="rowIndex === 0">
+              <th class="row-index">{{ rowIndex + 1 }}</th>
+              @for (cell of row; track $index) {
+                <td [title]="cell">{{ cell }}</td>
+              }
+            </tr>
+          } @empty {
+            <tr>
+              <td class="empty">Esta hoja está vacía.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

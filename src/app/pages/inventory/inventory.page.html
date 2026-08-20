@@ -31,6 +31,7 @@
   </div>
 
   <div class="toolbar-right">
+    <button class="btn btn-secondary" type="button" (click)="openImport()">Importar Excel</button>
     <button class="btn btn-primary" type="button" (click)="openModal()">+ Nuevo Equipo</button>
     <span class="count-label">{{ list().length }} equipos</span>
   </div>
@@ -72,13 +73,117 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="7" class="empty-row">No hay equipos. Crea el primero con “+ Nuevo Equipo”.</td>
+            <td colspan="7" class="empty-row">
+              No hay equipos. Crea uno o impórtalos desde Excel.
+            </td>
           </tr>
         }
       </tbody>
     </table>
   </div>
 </div>
+
+@if (showImport()) {
+  <div class="modal-backdrop" (click)="closeImport()">
+    <div class="modal modal-wide import-modal" (click)="$event.stopPropagation()">
+      <h2>Importar equipos desde Excel</h2>
+      <p class="muted intro">
+        Usa el listado técnico por proceso (Proceso, Equipo, Cantidad, Especificaciones,
+        Dimensiones / Capacidad, Material y Fuente). El proyecto se toma del título o lo eliges abajo.
+      </p>
+
+      <div class="import-actions">
+        <button class="btn btn-secondary" type="button" (click)="downloadTemplate()">
+          Descargar plantilla
+        </button>
+        <select
+          [ngModel]="importProjectId()"
+          (ngModelChange)="onImportProjectChange($event)"
+        >
+          <option value="">Proyecto destino</option>
+          @for (project of data.projects(); track project.id) {
+            <option [value]="project.id">{{ project.name }}</option>
+          }
+        </select>
+        @if (importFileName()) {
+          <span class="file-name">{{ importFileName() }}</span>
+        }
+      </div>
+
+      <label
+        class="drop-zone import-drop"
+        [class.dragging]="importDragging()"
+        (dragover)="onImportDragOver($event)"
+        (dragleave)="onImportDragLeave()"
+        (drop)="onImportDrop($event)"
+      >
+        <input
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          hidden
+          (change)="onImportFile($event)"
+        />
+        <strong>Arrastra el Excel aquí o haz clic para seleccionarlo</strong>
+        <span>Columnas: Proceso · Equipo · Cantidad · Especificaciones · Dimensiones / Capacidad · Material · Fuente</span>
+      </label>
+
+      @if (importRows().length) {
+        <div class="import-summary">
+          <span class="ok">{{ validImportCount() }} listos</span>
+          @if (invalidImportCount()) {
+            <span class="bad">{{ invalidImportCount() }} con error</span>
+          }
+        </div>
+        <div class="table-scroll import-preview">
+          <table class="import-table">
+            <thead>
+              <tr>
+                <th>Fila</th>
+                <th>Equipo</th>
+                <th>Proyecto</th>
+                <th>Proceso</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of importRows(); track row.line) {
+                <tr [class.row-error]="row.error">
+                  <td>{{ row.line }}</td>
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.projectName }}</td>
+                  <td>{{ row.proceso }}</td>
+                  <td>
+                    @if (row.error) {
+                      <span class="err">{{ row.error }}</span>
+                    } @else {
+                      <span class="ok">Listo</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      @if (importResult()) {
+        <p class="import-ok">{{ importResult() }}</p>
+      }
+
+      <div class="row modal-actions">
+        <button class="btn btn-secondary" type="button" (click)="closeImport()">Cerrar</button>
+        <button
+          class="btn btn-primary"
+          type="button"
+          [disabled]="!validImportCount()"
+          (click)="confirmImport()"
+        >
+          Importar {{ validImportCount() || '' }} equipos
+        </button>
+      </div>
+    </div>
+  </div>
+}
 
 @if (showModal()) {
   <div class="modal-backdrop" (click)="closeModal()">
@@ -99,7 +204,7 @@
         <div class="field">
           <label>Proceso</label>
           <select [(ngModel)]="form.proceso">
-            @for (process of processOptions; track process) {
+            @for (process of processOptions(); track process) {
               <option [value]="process">{{ process }}</option>
             }
           </select>
@@ -214,7 +319,6 @@
           <p class="meta">{{ eq.category }} · {{ eq.manufacturer }} · {{ eq.model }}</p>
           <div class="row status-row">
             <span class="status-pill" [class]="statusClass(eq.status) + ' status-pill'">{{ eq.status }}</span>
-            <strong class="price">{{ formatPrice(eq.price) }}</strong>
           </div>
         </div>
         <button class="link-btn" type="button" (click)="closeDetail()">Cerrar</button>
@@ -223,17 +327,84 @@
       <section>
         <h3>Especificaciones Técnicas</h3>
         <div class="spec-grid">
-          <article><span>CAUDAL</span><strong>{{ eq.specs.caudal || '—' }} L/s</strong></article>
-          <article><span>POTENCIA</span><strong>{{ eq.specs.potencia || '—' }} kW</strong></article>
-          <article><span>VOLTAJE</span><strong>{{ eq.specs.voltaje || '—' }} V</strong></article>
-          <article><span>RPM</span><strong>{{ eq.specs.rpm || '—' }}</strong></article>
-          <article><span>MATERIAL</span><strong>{{ eq.specs.material }}</strong></article>
-          <article><span>GARANTÍA</span><strong>{{ eq.specs.garantia }}</strong></article>
+          <label>
+            <span>CAUDAL</span>
+            <div class="spec-input">
+              <input type="text" [(ngModel)]="specDraft.caudal" placeholder="—" />
+              <em>L/s</em>
+            </div>
+          </label>
+          <label>
+            <span>POTENCIA</span>
+            <div class="spec-input">
+              <input type="number" [(ngModel)]="specDraft.potencia" placeholder="—" />
+              <em>kW</em>
+            </div>
+          </label>
+          <label>
+            <span>VOLTAJE</span>
+            <div class="spec-input">
+              <input type="text" [(ngModel)]="specDraft.voltaje" placeholder="—" />
+              <em>V</em>
+            </div>
+          </label>
+          <label>
+            <span>RPM</span>
+            <div class="spec-input">
+              <input type="number" [(ngModel)]="specDraft.rpm" placeholder="—" />
+            </div>
+          </label>
+          <label>
+            <span>MATERIAL</span>
+            <input type="text" [(ngModel)]="specDraft.material" placeholder="—" />
+          </label>
+          <label>
+            <span>GARANTÍA</span>
+            <input type="text" [(ngModel)]="specDraft.garantia" placeholder="—" />
+          </label>
+        </div>
+        <div class="spec-actions">
+          <button class="btn btn-primary" type="button" [disabled]="specSaving()" (click)="saveSpecs()">
+            {{ specSaving() ? 'Guardando…' : 'Guardar especificaciones' }}
+          </button>
+          @if (specSaved()) {
+            <span class="spec-ok">Guardado</span>
+          }
         </div>
       </section>
 
       <section>
-        <h3>Archivos</h3>
+        <h3>Presupuesto</h3>
+        <p class="muted intro">
+          Documento de presupuesto de este equipo. Queda ligado al proyecto
+          <strong>{{ projectName(eq.projectId) }}</strong>
+          y a las especificaciones ya registradas.
+        </p>
+        <div class="attach-panel">
+          <label class="drop-zone compact">
+            <input type="file" multiple hidden accept=".pdf,.xls,.xlsx,.doc,.docx" (change)="onBudgetFiles($event)" />
+            <strong>Subir presupuesto</strong>
+            <span>PDF, Excel o Word del presupuesto de la máquina</span>
+          </label>
+          <ul class="file-list">
+            @for (file of budgetFiles(eq); track file.id) {
+              <li>
+                <span class="file-tag">Presupuesto</span>
+                <div class="file-meta">
+                  <strong>{{ file.name }}</strong>
+                  <small>{{ file.size }}</small>
+                </div>
+                <button class="btn btn-secondary" type="button" (click)="viewFile(file, $event)">Ver</button>
+              </li>
+            } @empty {
+              <li class="empty-files">Aún no hay presupuesto para este equipo.</li>
+            }
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h3>Archivos técnicos</h3>
         <div class="attach-panel">
           <div class="type-chips">
             @for (cat of fileCategories; track cat.value) {
@@ -255,13 +426,14 @@
           </label>
 
           <ul class="file-list">
-            @for (file of eq.files; track file.id) {
+            @for (file of technicalFiles(eq); track file.id) {
               <li>
                 <span class="file-tag">{{ file.typeLabel }}</span>
                 <div class="file-meta">
                   <strong>{{ file.name }}</strong>
                   <small>{{ file.size }}</small>
                 </div>
+                <button class="btn btn-secondary" type="button" (click)="viewFile(file, $event)">Ver</button>
               </li>
             } @empty {
               <li class="empty-files">Sin archivos adjuntos</li>
@@ -305,4 +477,40 @@
       </div>
     </div>
   </aside>
+}
+
+@if (previewLoading()) {
+  <div class="preview-backdrop">
+    <p class="preview-loading">Abriendo archivo…</p>
+  </div>
+}
+
+@if (preview(); as file) {
+  <div class="preview-backdrop" (click)="closePreview()">
+    <div class="preview-modal" (click)="$event.stopPropagation()">
+      <header>
+        <strong>{{ file.name }}</strong>
+        <button class="btn btn-ghost" type="button" (click)="closePreview()">Cerrar</button>
+      </header>
+      @if (file.kind === 'image') {
+        <img [src]="file.url" [alt]="file.name" />
+      } @else if (file.kind === 'pdf') {
+        <iframe [src]="file.safeUrl" [title]="file.name"></iframe>
+      } @else if (file.kind === 'cad') {
+        <app-cad-preview
+          [fileUrl]="file.url"
+          [fileName]="file.name"
+          [downloadUrl]="file.url"
+        />
+      } @else if (file.kind === 'spreadsheet') {
+        <app-spreadsheet-preview
+          [fileUrl]="file.url"
+          [fileName]="file.name"
+          [downloadUrl]="file.url"
+        />
+      } @else {
+        <p class="empty-files">Este tipo de archivo no se puede previsualizar en el visor.</p>
+      }
+    </div>
+  </div>
 }

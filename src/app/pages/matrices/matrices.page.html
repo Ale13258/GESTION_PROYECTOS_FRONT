@@ -78,8 +78,11 @@
         <h2>Matriz comparativa</h2>
         <p>Mejores valores en verde · peores en rojo</p>
       </div>
-      <a class="btn btn-primary" routerLink="/aprobaciones">Generar Solicitud</a>
+      <button class="btn btn-primary" type="button" (click)="generateRequest()">Generar Solicitud</button>
     </header>
+    @if (generateError()) {
+      <p class="file-error">{{ generateError() }}</p>
+    }
 
     <div class="table-scroll">
       <table class="matrix-table">

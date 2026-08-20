@@ -1,0 +1,148 @@
+:host {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sheet-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #f8fafc;
+}
+
+.sheet-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.45rem 0.85rem;
+  background: #0f2744;
+  color: #dbeafe;
+  font-size: 0.78rem;
+}
+
+.sheet-open {
+  color: #93c5fd;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sheet-open:hover {
+  text-decoration: underline;
+}
+
+.sheet-tabs {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  padding: 0.35rem 0.65rem;
+  background: #e8f5ee;
+  border-bottom: 1px solid #cde5d6;
+}
+
+.sheet-tab {
+  border: 0;
+  background: transparent;
+  color: #166534;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.sheet-tab.active {
+  background: #fff;
+  font-weight: 700;
+  box-shadow: 0 -1px 0 #fff;
+}
+
+.sheet-note {
+  margin: 0;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.78rem;
+  color: #64748b;
+  background: #fff7ed;
+  border-bottom: 1px solid #fed7aa;
+}
+
+.sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #fff;
+}
+
+.sheet-table {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 0.78rem;
+}
+
+.sheet-table th,
+.sheet-table td {
+  border: 1px solid #e2e8f0;
+  padding: 0.28rem 0.5rem;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.sheet-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 600;
+  text-align: center;
+}
+
+.row-index {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #f8fafc;
+  color: #94a3b8;
+  font-weight: 600;
+  text-align: right;
+  min-width: 2.4rem;
+}
+
+.sheet-table thead .row-index {
+  z-index: 3;
+}
+
+.header-row td {
+  font-weight: 700;
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+.sheet-table tbody tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.sheet-table tbody tr:hover td {
+  background: #ecfdf5;
+}
+
+.empty {
+  padding: 2rem !important;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.sheet-fallback {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  gap: 0.85rem;
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+}

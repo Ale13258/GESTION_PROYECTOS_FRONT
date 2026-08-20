@@ -17,6 +17,10 @@ export interface EquipmentFile {
   mimeType: string;
   /** Vista previa local (object URL / data URL) para imágenes */
   previewUrl?: string;
+  /** URL pública en Firebase (necesaria para el visor DWG) */
+  url?: string;
+  /** Archivo nativo pendiente de subir al API */
+  nativeFile?: File;
 }
 
 export interface Project {
@@ -77,6 +81,9 @@ export interface NewEquipmentForm {
   nota: string;
   files: EquipmentFile[];
   imagePreview?: string;
+  manufacturer?: string;
+  supplier?: string;
+  model?: string;
 }
 
 export interface Supplier {
@@ -104,7 +111,9 @@ export interface NewSupplierForm {
 export interface Quotation {
   id: string;
   projectId: string;
+  equipmentId?: string;
   equipmentName: string;
+  supplierId?: string;
   supplier: string;
   amount: number;
   status: 'Pendiente' | 'Aprobada' | 'Rechazada' | 'En revisión';
@@ -115,7 +124,9 @@ export interface Quotation {
 
 export interface NewQuotationForm {
   projectId: string;
+  equipmentId: string;
   equipmentName: string;
+  supplierId: string;
   supplier: string;
   amount: number;
   deliveryDays: number;
@@ -128,6 +139,7 @@ export type ApprovalStatus = 'Aprobada' | 'En revisión' | 'Rechazada' | 'Borrad
 export interface ApprovalRequest {
   id: string;
   equipmentId: string;
+  equipmentIds: string[];
   equipmentName: string;
   projectId: string;
   projectName: string;
@@ -145,6 +157,7 @@ export interface DocumentItem {
   type: string;
   size: string;
   updatedAt: string;
+  url?: string;
 }
 
 export interface DashboardStats {

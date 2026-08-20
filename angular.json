@@ -50,6 +50,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "libredwg-web.wasm",
+                "input": "node_modules/@mlightcad/libredwg-web/wasm",
+                "output": "wasm"
               }
             ],
             "styles": [
@@ -82,6 +87,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          },
           "configurations": {
             "production": {
               "buildTarget": "promanage-engineering:build:production"

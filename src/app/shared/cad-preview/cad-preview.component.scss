@@ -1,0 +1,92 @@
+:host {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.cad-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #f8fafc;
+}
+
+.cad-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.45rem 0.85rem;
+  background: #0f2744;
+  color: #dbeafe;
+  font-size: 0.78rem;
+}
+
+.cad-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cad-tool {
+  min-width: 2rem;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 0.2rem 0.45rem;
+  cursor: pointer;
+}
+
+.cad-open {
+  color: #93c5fd;
+  text-decoration: none;
+  white-space: nowrap;
+  margin-left: 0.35rem;
+}
+
+.cad-open:hover,
+.cad-tool:hover {
+  text-decoration: underline;
+}
+
+.cad-stage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #fff;
+}
+
+.cad-stage-thumb {
+  display: grid;
+  place-items: center;
+}
+
+.cad-svg {
+  transform-origin: top left;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.cad-svg :is(svg) {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+}
+
+.cad-stage img {
+  max-width: 100%;
+  transform-origin: center center;
+}
+
+.cad-fallback {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  gap: 0.85rem;
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+}

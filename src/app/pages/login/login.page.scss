@@ -1,0 +1,146 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.login-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 42%) 1fr;
+  min-height: 100vh;
+}
+
+.login-brand {
+  background: #071a2f;
+  color: #fff;
+  padding: 2.25rem 2.4rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.login-brand .brand {
+  padding: 0;
+  border-bottom: 0;
+}
+
+.login-brand .brand-logo {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  display: block;
+  background: #fff;
+  border-radius: 12px;
+  padding: 0.45rem;
+  box-shadow: 0 0 18px rgba(59, 130, 196, 0.25);
+}
+
+.brand-copy .eyebrow {
+  margin: 0 0 0.75rem;
+  color: #7dd3fc;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.brand-copy h1 {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.brand-copy p:last-child {
+  margin: 1rem 0 0;
+  color: rgba(203, 213, 225, 0.85);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.login-panel {
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.25rem;
+  background: #f4f7fb;
+}
+
+.login-card {
+  width: min(420px, 100%);
+  background: #fff;
+  border: 1px solid #e8eef5;
+  border-radius: 16px;
+  padding: 1.75rem 1.6rem 1.4rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 12px 32px rgba(15, 23, 42, 0.06);
+}
+
+.login-card .eyebrow {
+  margin: 0 0 0.2rem;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.login-card h2 {
+  margin: 0;
+  color: #0f2744;
+  font-size: 1.45rem;
+}
+
+.lead {
+  margin: 0.4rem 0 1.25rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.password-row {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.password-row input {
+  flex: 1;
+}
+
+.toggle-pass {
+  border: 1px solid #d7e3f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #1a4f86;
+  padding: 0 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+.error {
+  margin: 0 0 0.85rem;
+  color: #b91c1c;
+  background: #fee2e2;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 840px) {
+  .login-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .login-brand {
+    min-height: auto;
+    padding: 1.4rem 1.25rem 1.2rem;
+  }
+
+  .brand-copy h1 {
+    font-size: 1.25rem;
+  }
+}

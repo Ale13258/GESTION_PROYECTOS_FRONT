@@ -1,0 +1,65 @@
+<div class="login-layout">
+  <aside class="login-brand">
+    <div class="brand">
+      <img class="brand-logo" src="logo.jpg" alt="ProManage Engineering" />
+    </div>
+
+    <div class="brand-copy">
+      <p class="eyebrow">Gestión de proyectos de ingeniería</p>
+      <h1>Inventario técnico, cotizaciones y aprobaciones en un solo lugar.</h1>
+      <p>
+        Centraliza equipos, proveedores y solicitudes de aprobación para plantas
+        de tratamiento y obras electromecánicas.
+      </p>
+    </div>
+  </aside>
+
+  <section class="login-panel">
+    <form class="login-card" (ngSubmit)="submit()">
+      <p class="eyebrow">Acceso</p>
+      <h2>Iniciar sesión</h2>
+      <p class="lead">Usa tu correo corporativo para entrar.</p>
+
+      <div class="field">
+        <label for="login-email">Correo</label>
+        <input
+          id="login-email"
+          type="email"
+          name="email"
+          autocomplete="username"
+          placeholder="nombre@promanage.co"
+          [(ngModel)]="email"
+        />
+      </div>
+
+      <div class="field">
+        <label for="login-password">Contraseña</label>
+        <div class="password-row">
+          <input
+            id="login-password"
+            [type]="showPassword() ? 'text' : 'password'"
+            name="password"
+            autocomplete="current-password"
+            placeholder="••••••••"
+            [(ngModel)]="password"
+          />
+          <button
+            class="toggle-pass"
+            type="button"
+            (click)="showPassword.set(!showPassword())"
+          >
+            {{ showPassword() ? 'Ocultar' : 'Ver' }}
+          </button>
+        </div>
+      </div>
+
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+
+      <button class="btn btn-primary submit" type="submit" [disabled]="loading()">
+        {{ loading() ? 'Entrando…' : 'Entrar' }}
+      </button>
+    </form>
+  </section>
+</div>

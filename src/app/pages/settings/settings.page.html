@@ -2,43 +2,57 @@
   <div>
     <p class="eyebrow">Sistema</p>
     <h1>Configuración</h1>
-    <p>Preferencias corporativas del prototipo ProManage Engineering.</p>
+    <p>Preferencias de tu cuenta y acceso.</p>
   </div>
 </section>
 
+@if (message()) {
+  <p class="ok">{{ message() }}</p>
+}
+@if (error()) {
+  <p class="err">{{ error() }}</p>
+}
+
 <article class="panel stack">
-  <div class="row"><strong>Tema:</strong> <span>Modo claro corporativo (azul / blanco / gris)</span></div>
-  <div class="row"><strong>Idioma:</strong> <span>Español</span></div>
-  <div class="row"><strong>Moneda:</strong> <span>COP</span></div>
-  <div class="row"><strong>Exportación:</strong> <span>PDF / Word</span></div>
+  <h2>Preferencias</h2>
+  <label class="field-label" for="theme">Tema</label>
+  <select id="theme" [(ngModel)]="theme">
+    <option value="light">Claro</option>
+    <option value="dark">Oscuro</option>
+  </select>
+  <label class="field-label" for="language">Idioma</label>
+  <select id="language" [(ngModel)]="language">
+    <option value="es">Español</option>
+    <option value="en">English</option>
+  </select>
+  <label class="field-label" for="currency">Moneda</label>
+  <select id="currency" [(ngModel)]="currency">
+    <option value="COP">COP</option>
+    <option value="USD">USD</option>
+  </select>
+  <div>
+    <button class="btn btn-primary" type="button" (click)="savePreferences()">Guardar preferencias</button>
+  </div>
 </article>
 
 <article class="panel session-panel">
-  <h2>Sesión de prototipo</h2>
+  <h2>Cuenta</h2>
   <p>
-    Cambia de usuario para probar permisos. Los colaboradores no ven el menú
-    <strong>Usuarios</strong> y no pueden crear cuentas.
+    Sesión de
+    <strong>{{ auth.currentUser()?.name }}</strong>
+    ({{ auth.roleLabel(auth.currentUser()?.role ?? 'collaborator') }}).
+    @if (auth.canManageUsers()) {
+      Puedes gestionar usuarios.
+    } @else {
+      No puedes gestionar usuarios.
+    }
   </p>
 
-  <label class="field-label" for="session-user">Usuario activo</label>
-  <select
-    id="session-user"
-    [ngModel]="auth.currentUser().id"
-    (ngModelChange)="switchUser($event)"
-  >
-    @for (user of auth.users(); track user.id) {
-      <option [value]="user.id" [disabled]="!user.active">
-        {{ user.name }} — {{ auth.roleLabel(user.role) }}
-        {{ user.active ? '' : '(inactivo)' }}
-      </option>
-    }
-  </select>
+  <label class="field-label" for="current-password">Contraseña actual</label>
+  <input id="current-password" type="password" [(ngModel)]="currentPassword" />
 
-  <div class="session-meta">
-    <span>Rol actual: <strong>{{ auth.roleLabel(auth.currentUser().role) }}</strong></span>
-    <span>
-      Puede crear usuarios:
-      <strong>{{ auth.canManageUsers() ? 'Sí' : 'No' }}</strong>
-    </span>
-  </div>
+  <label class="field-label" for="new-password">Nueva contraseña</label>
+  <input id="new-password" type="password" [(ngModel)]="newPassword" />
+
+  <button class="btn btn-primary" type="button" (click)="savePassword()">Cambiar contraseña</button>
 </article>

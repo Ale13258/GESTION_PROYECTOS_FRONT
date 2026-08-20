@@ -2,7 +2,7 @@
   <div>
     <p class="eyebrow">Reportes</p>
     <h1>Reportes</h1>
-    <p>Indicadores consolidados de todos los proyectos</p>
+    <p>Indicadores consolidados de todos los proyectos. Las exportaciones también se guardan en Firebase.</p>
   </div>
   <div class="header-actions">
     <button class="btn btn-secondary" type="button" (click)="exportExcel()">
@@ -25,6 +25,10 @@
     </button>
   </div>
 </section>
+
+@if (exportError()) {
+  <p class="export-error">{{ exportError() }}</p>
+}
 
 <div class="reports-grid">
   <article class="panel chart-card">

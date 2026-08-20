@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../core/services/auth.service';
 import { DataService } from '../../core/services/data.service';
 
 @Component({
@@ -11,6 +12,7 @@ import { DataService } from '../../core/services/data.service';
 })
 export class ProjectsPage {
   private readonly data = inject(DataService);
+  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
   readonly projects = this.data.projects;
@@ -32,18 +34,18 @@ export class ProjectsPage {
     this.showModal.set(false);
   }
 
-  createProject(): void {
+  async createProject(): Promise<void> {
     if (!this.form.name.trim()) {
       return;
     }
-    const created = this.data.addProject({
+    const engineerId = this.auth.currentUser()?.id;
+    if (!engineerId) return;
+    const created = await this.data.addProject({
       name: this.form.name.trim(),
       client: this.form.client.trim() || 'Cliente por definir',
       location: this.form.location.trim() || 'Sin ubicación',
-      engineer: this.form.engineer.trim() || 'Por asignar',
-      startDate: new Date().toISOString().slice(0, 10),
-      status: 'Activo',
-      progress: 5,
+      engineer: this.form.engineer.trim() || this.auth.currentUser()?.name || 'Por asignar',
+      engineerId,
       description: this.form.description.trim() || 'Nuevo proyecto de ingeniería.',
     });
     this.form = { name: '', client: '', location: '', engineer: '', description: '' };

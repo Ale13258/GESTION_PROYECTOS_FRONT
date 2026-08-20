@@ -1,0 +1,148 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Documentos</p>
+    <h1>Documentos</h1>
+    <p>Todos los documentos de los proyectos</p>
+  </div>
+</section>
+
+<div class="kpi-row">
+  <article class="kpi-card">
+    <span>Total de documentos</span>
+    <strong>{{ stats().total }}</strong>
+  </article>
+  <article class="kpi-card">
+    <span>Proyectos con archivos</span>
+    <strong>{{ stats().projects }}</strong>
+  </article>
+  <article class="kpi-card">
+    <span>Carpetas usadas</span>
+    <strong>{{ stats().folders }}</strong>
+  </article>
+</div>
+
+<div class="docs-toolbar">
+  <div class="filters-row">
+    <select [ngModel]="filterProject()" (ngModelChange)="filterProject.set($event)">
+      <option value="">Todos los proyectos</option>
+      @for (project of data.projects(); track project.id) {
+        <option [value]="project.id">{{ project.name }}</option>
+      }
+    </select>
+
+    <select [ngModel]="filterFolder()" (ngModelChange)="filterFolder.set($event)">
+      <option value="">Todas las carpetas</option>
+      @for (folder of folders; track folder) {
+        <option [value]="folder">{{ folder }}</option>
+      }
+    </select>
+
+    <input
+      class="search-input"
+      type="search"
+      placeholder="Buscar por nombre o tipo…"
+      [ngModel]="filterText()"
+      (ngModelChange)="filterText.set($event)"
+    />
+  </div>
+  <span class="count-label">{{ filtered().length }} documentos</span>
+</div>
+
+@if (previewError()) {
+  <p class="docs-error">{{ previewError() }}</p>
+}
+
+@if (filtered().length === 0) {
+  <article class="empty-panel">
+    <span class="material-symbols-outlined">folder_off</span>
+    <h2>No hay documentos</h2>
+    <p>Prueba otro proyecto, otra carpeta o sube archivos desde el detalle del proyecto.</p>
+  </article>
+} @else if (filterProject()) {
+  <div class="doc-grid">
+    @for (doc of filtered(); track doc.id) {
+      <article class="doc-card">
+        <div class="doc-icon" [attr.data-tone]="fileTone(doc)">
+          <span class="material-symbols-outlined">{{ fileIcon(doc) }}</span>
+        </div>
+        <div class="doc-body">
+          <strong [title]="doc.name">{{ doc.name }}</strong>
+          <p>{{ doc.folder }} · {{ doc.size }}</p>
+          <p class="muted">{{ doc.projectName }} · {{ doc.updatedAt | date: 'mediumDate' }}</p>
+        </div>
+        <div class="doc-actions">
+          <button class="btn btn-secondary" type="button" (click)="viewDocument(doc)">Ver</button>
+          <a class="btn btn-ghost" [routerLink]="['/proyectos', doc.projectId]">Ir al proyecto</a>
+        </div>
+      </article>
+    }
+  </div>
+} @else {
+  <div class="doc-groups">
+    @for (group of groups(); track group.projectId) {
+      <section class="doc-group">
+        <header class="group-head">
+          <a [routerLink]="['/proyectos', group.projectId]">{{ group.projectName }}</a>
+          <span>{{ group.docs.length }} documentos</span>
+        </header>
+        <div class="doc-grid">
+          @for (doc of group.docs; track doc.id) {
+            <article class="doc-card">
+              <div class="doc-icon" [attr.data-tone]="fileTone(doc)">
+                <span class="material-symbols-outlined">{{ fileIcon(doc) }}</span>
+              </div>
+              <div class="doc-body">
+                <strong [title]="doc.name">{{ doc.name }}</strong>
+                <p>{{ doc.folder }} · {{ doc.size }}</p>
+                <p class="muted">{{ doc.updatedAt | date: 'mediumDate' }}</p>
+              </div>
+              <div class="doc-actions">
+                <button class="btn btn-secondary" type="button" (click)="viewDocument(doc)">Ver</button>
+                <a class="btn btn-ghost" [routerLink]="['/proyectos', doc.projectId]">Ir al proyecto</a>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
+  </div>
+}
+
+@if (previewLoading()) {
+  <div class="preview-backdrop">
+    <p class="preview-loading">Abriendo archivo…</p>
+  </div>
+}
+
+@if (preview(); as file) {
+  <div class="preview-backdrop" (click)="closePreview()">
+    <div class="preview-modal" (click)="$event.stopPropagation()">
+      <header>
+        <strong>{{ file.name }}</strong>
+        <button class="btn btn-ghost" type="button" (click)="closePreview()">Cerrar</button>
+      </header>
+      @if (file.kind === 'image') {
+        <img [src]="file.url" [alt]="file.name" />
+      } @else if (file.kind === 'pdf') {
+        <iframe [src]="file.safeUrl" [title]="file.name"></iframe>
+      } @else if (file.kind === 'cad') {
+        <app-cad-preview
+          [fileUrl]="file.url"
+          [fileName]="file.name"
+          [downloadUrl]="file.url"
+        />
+      } @else if (file.kind === 'spreadsheet') {
+        <app-spreadsheet-preview
+          [fileUrl]="file.url"
+          [fileName]="file.name"
+          [downloadUrl]="file.url"
+        />
+      } @else {
+        <div class="preview-fallback">
+          <p class="muted">Este tipo de archivo no se puede previsualizar en el visor.</p>
+          <a class="btn btn-primary" [href]="file.url" [download]="file.name">Descargar</a>
+        </div>
+      }
+    </div>
+  </div>
+}

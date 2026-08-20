@@ -36,9 +36,9 @@ export class SuppliersPage {
     this.showModal.set(false);
   }
 
-  createSupplier(): void {
+  async createSupplier(): Promise<void> {
     if (!this.form.name.trim()) return;
-    this.data.addSupplier(this.form);
+    await this.data.addSupplier(this.form);
     this.closeModal();
   }
 

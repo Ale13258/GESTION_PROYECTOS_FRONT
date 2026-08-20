@@ -39,6 +39,9 @@ testem.log
 /typings
 __screenshots__/
 
+# CAD viewer wasm (copied from node_modules for ng serve)
+/public/wasm
+
 # System files
 .DS_Store
 Thumbs.db
