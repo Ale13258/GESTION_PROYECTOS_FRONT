@@ -1,0 +1,87 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">PE</div>
+      <div class="brand-text">
+        <strong>ProManage</strong>
+        <span>ENGINEERING</span>
+      </div>
+    </div>
+
+    <nav class="nav-tree">
+      <a class="nav-item" routerLink="/dashboard" routerLinkActive="active">
+        <span class="material-symbols-outlined">home</span>
+        <span>Dashboard</span>
+      </a>
+
+      <div class="nav-group" [class.open]="projectsOpen()">
+        <button class="nav-item nav-parent" type="button" (click)="toggleProjects()">
+          <span class="material-symbols-outlined">folder</span>
+          <span>Proyectos</span>
+          <span class="material-symbols-outlined chevron">
+            {{ projectsOpen() ? 'expand_more' : 'chevron_right' }}
+          </span>
+        </button>
+
+        @if (projectsOpen()) {
+          <div class="nav-children">
+            <a class="nav-child" routerLink="/proyectos" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+              <i></i>
+              <span>Todos los proyectos</span>
+            </a>
+            @for (project of data.projects(); track project.id) {
+              <a
+                class="nav-child"
+                [routerLink]="['/proyectos', project.id]"
+                routerLinkActive="active"
+              >
+                <i></i>
+                <span>{{ project.name }}</span>
+              </a>
+            }
+          </div>
+        }
+      </div>
+
+      @for (item of navItems(); track item.path) {
+        <a class="nav-item" [routerLink]="item.path" routerLinkActive="active">
+          <span class="material-symbols-outlined">{{ item.icon }}</span>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div class="search-box">
+        <span class="material-symbols-outlined">search</span>
+        <input
+          type="search"
+          placeholder="Buscar proyectos, equipos, proveedores, cotizaciones..."
+          [ngModel]="data.searchQuery()"
+          (ngModelChange)="onSearch($event)"
+        />
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary" type="button" title="Notificaciones">
+          <span class="material-symbols-outlined">notifications</span>
+        </button>
+        <button class="btn btn-secondary" type="button" title="Configuración" routerLink="/configuracion">
+          <span class="material-symbols-outlined">settings</span>
+        </button>
+        <div class="user-chip">
+          <div class="avatar">{{ auth.initials(auth.currentUser().name) }}</div>
+          <div class="user-meta">
+            <strong>{{ auth.currentUser().name }}</strong>
+            <span>{{ auth.currentUser().title }}</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

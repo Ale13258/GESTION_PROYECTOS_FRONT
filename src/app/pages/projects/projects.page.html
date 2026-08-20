@@ -1,0 +1,56 @@
+<section class="page-header">
+  <div>
+    <h1>Proyectos</h1>
+    <p>Cada proyecto funciona como una carpeta digital de ingeniería.</p>
+  </div>
+  <button class="btn btn-primary" type="button" (click)="openModal()">
+    <span class="material-symbols-outlined">create_new_folder</span>
+    Nuevo Proyecto
+  </button>
+</section>
+
+<div class="folder-grid">
+  @for (project of projects(); track project.id) {
+    <a class="folder-card" [routerLink]="['/proyectos', project.id]">
+      <div class="folder-icon material-symbols-outlined">folder</div>
+      <h3>📁 {{ project.name }}</h3>
+      <p>{{ project.client }} · {{ project.location }}</p>
+      <div class="meta">
+        <span class="badge badge-info">{{ project.status }}</span>
+        <span class="muted">{{ project.progress }}%</span>
+      </div>
+    </a>
+  }
+</div>
+
+@if (showModal()) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>Nuevo Proyecto</h2>
+      <div class="field">
+        <label>Nombre del proyecto</label>
+        <input [(ngModel)]="form.name" placeholder="Ej. PTAR Barranquilla" />
+      </div>
+      <div class="field">
+        <label>Cliente</label>
+        <input [(ngModel)]="form.client" placeholder="Empresa / entidad" />
+      </div>
+      <div class="field">
+        <label>Ubicación</label>
+        <input [(ngModel)]="form.location" placeholder="Ciudad" />
+      </div>
+      <div class="field">
+        <label>Ingeniero responsable</label>
+        <input [(ngModel)]="form.engineer" placeholder="Nombre" />
+      </div>
+      <div class="field">
+        <label>Descripción</label>
+        <textarea rows="3" [(ngModel)]="form.description"></textarea>
+      </div>
+      <div class="row" style="justify-content: flex-end">
+        <button class="btn btn-secondary" type="button" (click)="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" type="button" (click)="createProject()">Crear</button>
+      </div>
+    </div>
+  </div>
+}

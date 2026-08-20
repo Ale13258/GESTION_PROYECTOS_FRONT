@@ -1,0 +1,383 @@
+@if (!project()) {
+  <section class="page-header">
+    <div>
+      <h1>Proyecto no encontrado</h1>
+      <p>El identificador no corresponde a un proyecto existente.</p>
+    </div>
+    <a class="btn btn-secondary" routerLink="/proyectos">Volver</a>
+  </section>
+} @else {
+  <section class="page-header">
+    <div>
+      <p class="muted">Proyectos / 📁 {{ project()!.name }}</p>
+      <h1>📁 {{ project()!.name }}</h1>
+      <p>{{ project()!.client }} · {{ project()!.location }}</p>
+    </div>
+    <div class="row">
+      <a class="btn btn-secondary" routerLink="/comparador">
+        <span class="material-symbols-outlined">compare</span>
+        Comparador ({{ data.selectedEquipmentIds().length }}/3)
+      </a>
+      <a class="btn btn-primary" routerLink="/aprobaciones">
+        <span class="material-symbols-outlined">description</span>
+        Generar Solicitud
+      </a>
+    </div>
+  </section>
+
+  <div class="tabs">
+    @for (tab of tabs; track tab.id) {
+      <button
+        class="tab"
+        type="button"
+        [class.active]="activeTab() === tab.id"
+        (click)="setTab(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </div>
+
+  @switch (activeTab()) {
+    @case ('info') {
+      <article class="panel">
+        <h2>Información General</h2>
+        <div class="info-grid">
+          <div><span class="muted">Cliente</span><strong>{{ project()!.client }}</strong></div>
+          <div><span class="muted">Ubicación</span><strong>{{ project()!.location }}</strong></div>
+          <div><span class="muted">Ingeniero</span><strong>{{ project()!.engineer }}</strong></div>
+          <div><span class="muted">Inicio</span><strong>{{ project()!.startDate | date: 'mediumDate' }}</strong></div>
+          <div><span class="muted">Estado</span><strong>{{ project()!.status }}</strong></div>
+          <div><span class="muted">Avance</span><strong>{{ project()!.progress }}%</strong></div>
+        </div>
+        <p style="margin-top: 1rem">{{ project()!.description }}</p>
+      </article>
+    }
+
+    @case ('documentos') {
+      <div class="docs-layout">
+        <aside class="panel folder-list">
+          <h2>Carpetas</h2>
+          @for (folder of folders; track folder) {
+            <button
+              type="button"
+              class="folder-btn"
+              [class.active]="docFolder() === folder"
+              (click)="docFolder.set(folder)"
+            >
+              📁 {{ folder }}
+            </button>
+          }
+        </aside>
+
+        <section class="panel">
+          <h2>📁 {{ docFolder() }}</h2>
+          <div
+            class="dropzone"
+            [class.dragover]="dragOver()"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave()"
+            (drop)="onDrop($event)"
+          >
+            <span class="material-symbols-outlined">cloud_upload</span>
+            <p>Arrastra y suelta archivos aquí</p>
+            <label class="btn btn-secondary">
+              Seleccionar archivos
+              <input type="file" multiple hidden (change)="onFileInput($event)" />
+            </label>
+          </div>
+
+          <div class="table-wrap" style="margin-top: 1rem">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Tipo</th>
+                  <th>Tamaño</th>
+                  <th>Actualizado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (doc of documents(); track doc.id) {
+                  <tr>
+                    <td>{{ doc.name }}</td>
+                    <td>{{ doc.type }}</td>
+                    <td>{{ doc.size }}</td>
+                    <td>{{ doc.updatedAt | date: 'mediumDate' }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="4" class="muted">No hay archivos en esta carpeta.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    }
+
+    @case ('equipos') {
+      <div class="filters">
+        <input
+          type="search"
+          placeholder="Filtrar por nombre, fabricante o proveedor"
+          [ngModel]="filterText()"
+          (ngModelChange)="filterText.set($event)"
+        />
+        <select [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event)">
+          <option value="">Todos los estados</option>
+          <option>Registrado</option>
+          <option>En evaluación</option>
+          <option>Pendiente</option>
+          <option>Aprobado</option>
+          <option>Rechazado</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Imagen</th>
+              <th>Nombre</th>
+              <th>Categoría</th>
+              <th>Fabricante</th>
+              <th>Proveedor</th>
+              <th>Modelo</th>
+              <th>Estado</th>
+              <th>Precio</th>
+              <th>Registro</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of equipment(); track item.id) {
+              <tr (click)="openEquipment(item)">
+                <td>
+                  <input
+                    type="checkbox"
+                    [checked]="isSelected(item.id)"
+                    (click)="toggleCompare(item.id, $event)"
+                    title="Agregar al comparador"
+                  />
+                </td>
+                <td>
+                  <img class="thumb" [src]="item.image" [alt]="item.name" />
+                </td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.category }}</td>
+                <td>{{ item.manufacturer }}</td>
+                <td>{{ item.supplier }}</td>
+                <td>{{ item.model }}</td>
+                <td><span [class]="'badge ' + statusClass(item.status)">{{ item.status }}</span></td>
+                <td>{{ item.price | currency: 'COP':'symbol-narrow':'1.0-0' }}</td>
+                <td>{{ item.registeredAt | date: 'mediumDate' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('proveedores') {
+      <div class="folder-grid">
+        @for (supplier of projectSuppliers(); track supplier.id) {
+          <article class="folder-card">
+            <div class="folder-icon material-symbols-outlined">apartment</div>
+            <h3>{{ supplier.name }}</h3>
+            <p>{{ supplier.country }} · ⭐ {{ supplier.rating }}</p>
+            <p class="muted">{{ supplier.contacts }}</p>
+          </article>
+        } @empty {
+          <p class="muted">Sin proveedores asociados.</p>
+        }
+      </div>
+    }
+
+    @case ('matrices') {
+      <article class="panel">
+        <h2>Matrices Comparativas</h2>
+        <p class="muted">
+          Selecciona hasta 3 equipos en la pestaña Equipos y abre el comparador inteligente.
+        </p>
+        <a class="btn btn-primary" routerLink="/comparador">Abrir Comparador Inteligente</a>
+      </article>
+    }
+
+    @case ('cotizaciones') {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Equipo</th>
+              <th>Proveedor</th>
+              <th>Monto</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (q of quotations(); track q.id) {
+              <tr>
+                <td>{{ q.equipmentName }}</td>
+                <td>{{ q.supplier }}</td>
+                <td>{{ q.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</td>
+                <td><span [class]="'badge ' + statusClass(q.status)">{{ q.status }}</span></td>
+                <td>{{ q.date | date: 'mediumDate' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('reportes') {
+      <article class="panel">
+        <h2>Reportes del proyecto</h2>
+        <div class="stack">
+          <div class="row">
+            <span class="material-symbols-outlined">summarize</span>
+            Informe de avance documental — {{ indicators().documentProgress }}%
+          </div>
+          <div class="row">
+            <span class="material-symbols-outlined">engineering</span>
+            Estado de equipos: {{ indicators().approved }} aprobados / {{ indicators().pending }} pendientes
+          </div>
+          <div class="row">
+            <span class="material-symbols-outlined">payments</span>
+            Valor total cotizado:
+            {{ indicators().totalQuoted | currency: 'COP':'symbol-narrow':'1.0-0' }}
+          </div>
+        </div>
+      </article>
+    }
+
+    @case ('dashboard') {
+      <div class="kpi-mini">
+        <article class="panel"><span class="muted">% avance documental</span><strong>{{ indicators().documentProgress }}%</strong></article>
+        <article class="panel"><span class="muted">Equipos registrados</span><strong>{{ indicators().registered }}</strong></article>
+        <article class="panel"><span class="muted">Equipos aprobados</span><strong>{{ indicators().approved }}</strong></article>
+        <article class="panel"><span class="muted">Equipos pendientes</span><strong>{{ indicators().pending }}</strong></article>
+        <article class="panel"><span class="muted">Valor total cotizado</span><strong>{{ indicators().totalQuoted | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong></article>
+        <article class="panel"><span class="muted">Proveedores evaluados</span><strong>{{ indicators().suppliersEvaluated }}</strong></article>
+        <article class="panel"><span class="muted">Comparaciones realizadas</span><strong>{{ indicators().comparisons }}</strong></article>
+        <article class="panel"><span class="muted">Tiempo promedio de análisis</span><strong>{{ indicators().avgAnalysisDays }} días</strong></article>
+      </div>
+
+      <article class="panel" style="margin-top: 1rem">
+        <h2>Generación automática — Solicitud de Aprobación</h2>
+        <div class="row" style="margin-bottom: 1rem">
+          <label class="btn btn-secondary">
+            Cambiar logo del cliente
+            <input type="file" accept="image/*" hidden (change)="onLogoChange($event)" />
+          </label>
+          <span class="muted">Logo actual: {{ clientLogoName() }}</span>
+        </div>
+
+        <div class="doc-preview">
+          <div class="doc-header">
+            <div class="logo-box">{{ clientLogoName() }}</div>
+            <div>
+              <h2>SOLICITUD DE APROBACIÓN DE EQUIPOS</h2>
+              <p class="muted">Formato técnico generado automáticamente</p>
+            </div>
+          </div>
+          <div class="info-grid">
+            <div><span class="muted">Proyecto</span><strong>{{ project()!.name }}</strong></div>
+            <div><span class="muted">Cliente</span><strong>{{ project()!.client }}</strong></div>
+            <div><span class="muted">Ubicación</span><strong>{{ project()!.location }}</strong></div>
+            <div><span class="muted">Ingeniero</span><strong>{{ project()!.engineer }}</strong></div>
+          </div>
+          <p style="margin-top: 1rem">
+            El sistema completa el formato con la información almacenada del proyecto y del equipo
+            seleccionado. Solo se permite ajustar el logo del cliente y datos puntuales del proyecto.
+          </p>
+          <div class="row" style="margin-top: 1rem">
+            <button class="btn btn-primary" type="button" (click)="exportDocument('pdf')">
+              Exportar PDF
+            </button>
+            <button class="btn btn-secondary" type="button" (click)="exportDocument('word')">
+              Exportar Word
+            </button>
+          </div>
+        </div>
+      </article>
+    }
+  }
+}
+
+@if (selectedEquipment(); as eq) {
+  <div class="drawer-backdrop" (click)="closeEquipment()"></div>
+  <aside class="drawer">
+    <div class="drawer-header">
+      <div>
+        <h3>{{ eq.name }}</h3>
+        <p class="muted" style="margin: 0.2rem 0 0">{{ eq.category }} · {{ eq.manufacturer }} · {{ eq.model }}</p>
+      </div>
+      <button class="btn btn-ghost" type="button" (click)="closeEquipment()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="drawer-body stack">
+      <img [src]="eq.image" [alt]="eq.name" />
+
+      <div class="spec-cards">
+        <article><span>CAUDAL</span><strong>{{ eq.specs.caudal }} L/s</strong></article>
+        <article><span>POTENCIA</span><strong>{{ eq.specs.potencia }} kW</strong></article>
+        <article><span>VOLTAJE</span><strong>{{ eq.specs.voltaje }} V</strong></article>
+        <article><span>RPM</span><strong>{{ eq.specs.rpm }}</strong></article>
+        <article><span>MATERIAL</span><strong>{{ eq.specs.material }}</strong></article>
+        <article><span>GARANTÍA</span><strong>{{ eq.specs.garantia }}</strong></article>
+      </div>
+
+      <div>
+        <h4>Archivos</h4>
+        <div class="attach-panel">
+          <div class="type-chips">
+            @for (cat of fileCategories; track cat.value) {
+              <button
+                type="button"
+                class="type-chip"
+                [class.active]="uploadCategory() === cat.value"
+                (click)="uploadCategory.set(cat.value)"
+              >
+                {{ cat.label }}
+              </button>
+            }
+          </div>
+          <label class="drop-zone compact">
+            <input type="file" multiple hidden (change)="onEquipmentFiles($event)" />
+            <strong>Subir archivo</strong>
+            <span>Selecciona el tipo y haz clic aquí</span>
+          </label>
+          <ul class="eq-files">
+            @for (file of eq.files; track file.id) {
+              <li>
+                <span class="file-tag">{{ file.typeLabel }}</span>
+                <div>
+                  <strong>{{ file.name }}</strong>
+                  <small>{{ file.size }}</small>
+                </div>
+              </li>
+            } @empty {
+              <li class="muted empty-attach">Sin archivos adjuntos</li>
+            }
+          </ul>
+        </div>
+      </div>
+
+      <div>
+        <h4>Historial</h4>
+        <ul class="spec-list">
+          @for (h of eq.history; track h.date + h.event) {
+            <li>{{ h.date }} — {{ h.event }}</li>
+          }
+        </ul>
+      </div>
+      <button class="btn btn-primary" type="button" (click)="toggleCompare(eq.id, $event)">
+        {{ isSelected(eq.id) ? 'Quitar del comparador' : 'Agregar al comparador' }}
+      </button>
+    </div>
+  </aside>
+}

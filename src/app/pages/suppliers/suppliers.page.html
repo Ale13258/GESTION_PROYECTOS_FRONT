@@ -1,0 +1,109 @@
+<section class="page-header">
+  <div>
+    <h1>Proveedores</h1>
+    <p>Directorio y evaluación de proveedores técnicos.</p>
+  </div>
+</section>
+
+<article class="suppliers-card">
+  <div class="card-toolbar">
+    <p>Proveedores evaluados en el sistema</p>
+    <button class="btn btn-primary" type="button" (click)="openModal()">+ Nuevo Proveedor</button>
+  </div>
+
+  <div class="table-scroll">
+    <table class="suppliers-table">
+      <thead>
+        <tr>
+          <th>Proveedor</th>
+          <th>Categoría</th>
+          <th>Contacto</th>
+          <th>Email</th>
+          <th>Teléfono</th>
+          <th>Calificación</th>
+          <th>Equipos</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (supplier of data.suppliers(); track supplier.id) {
+          <tr>
+            <td>
+              <div class="supplier-cell">
+                <span class="avatar">{{ initials(supplier.name) }}</span>
+                <strong>{{ supplier.name }}</strong>
+              </div>
+            </td>
+            <td>{{ categoryLabel(supplier.categories) }}</td>
+            <td>{{ supplier.contactName }}</td>
+            <td>{{ supplier.email }}</td>
+            <td>{{ supplier.phone }}</td>
+            <td class="rating">★ {{ supplier.rating.toFixed(1) }}</td>
+            <td class="equip-count">{{ equipmentCount(supplier.name) }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="empty">No hay proveedores. Crea el primero con “+ Nuevo Proveedor”.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</article>
+
+@if (showModal()) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal supplier-modal" (click)="$event.stopPropagation()">
+      <h2>Nuevo Proveedor</h2>
+      <p class="muted intro">Completa los datos del proveedor técnico.</p>
+
+      <div class="form-grid">
+        <div class="field full">
+          <label>Nombre del proveedor</label>
+          <input [(ngModel)]="form.name" placeholder="Ej. Hidrotécnica S.A.S" />
+        </div>
+
+        <div class="field">
+          <label>Categoría</label>
+          <input [(ngModel)]="form.categories" placeholder="Ej. Bombeo / Aireación" />
+        </div>
+
+        <div class="field">
+          <label>País</label>
+          <input [(ngModel)]="form.country" placeholder="Colombia" />
+        </div>
+
+        <div class="field">
+          <label>Contacto</label>
+          <input [(ngModel)]="form.contactName" placeholder="Nombre del contacto" />
+        </div>
+
+        <div class="field">
+          <label>Calificación (0-5)</label>
+          <input type="number" min="0" max="5" step="0.1" [(ngModel)]="form.rating" />
+        </div>
+
+        <div class="field">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="form.email" placeholder="contacto@empresa.com" />
+        </div>
+
+        <div class="field">
+          <label>Teléfono</label>
+          <input [(ngModel)]="form.phone" placeholder="+57 300 000 0000" />
+        </div>
+      </div>
+
+      <div class="row actions">
+        <button class="btn btn-secondary" type="button" (click)="closeModal()">Cancelar</button>
+        <button
+          class="btn btn-primary"
+          type="button"
+          [disabled]="!form.name.trim()"
+          (click)="createSupplier()"
+        >
+          Guardar proveedor
+        </button>
+      </div>
+    </div>
+  </div>
+}

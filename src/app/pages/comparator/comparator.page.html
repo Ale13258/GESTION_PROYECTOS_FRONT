@@ -1,0 +1,85 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Comparador</p>
+    <h1>Comparador Inteligente</h1>
+    <p>Matriz automática de hasta tres equipos con resaltado de mejores y peores características.</p>
+  </div>
+  <div class="row">
+    <button class="btn btn-secondary" type="button" (click)="data.clearCompareSelection()">
+      Limpiar selección
+    </button>
+    <a
+      class="btn btn-primary"
+      routerLink="/aprobaciones"
+      [class.disabled]="selected().length === 0"
+    >
+      Generar Solicitud
+    </a>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="toolbar">
+    <h2>Seleccionar equipos ({{ selected().length }}/3)</h2>
+    <input
+      type="search"
+      placeholder="Buscar en inventario…"
+      [ngModel]="filter()"
+      (ngModelChange)="filter.set($event)"
+    />
+  </div>
+
+  <div class="equip-grid">
+    @for (item of catalog(); track item.id) {
+      <label class="equip-row" [class.on]="isSelected(item.id)">
+        <input
+          type="checkbox"
+          [checked]="isSelected(item.id)"
+          [disabled]="!isSelected(item.id) && selected().length >= 3"
+          (change)="toggle(item.id)"
+        />
+        <span class="mark">{{ item.name.charAt(0) }}</span>
+        <div class="info">
+          <strong>{{ item.name }}</strong>
+          <small>{{ item.manufacturer }} · {{ item.specs.cumplimiento }}%</small>
+        </div>
+        <span class="check" aria-hidden="true"></span>
+      </label>
+    }
+  </div>
+</section>
+
+@if (selected().length >= 2) {
+  <div class="table-wrap matrix-wrap">
+    <table class="data-table compare-table">
+      <thead>
+        <tr>
+          <th>Característica</th>
+          @for (item of selected(); track item.id) {
+            <th>{{ item.name }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows; track row.key) {
+          <tr>
+            <td><strong>{{ row.label }}</strong></td>
+            @for (item of selected(); track item.id) {
+              <td [class]="cellClass(row, item)">{{ displayValue(row, item) }}</td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <article class="ai-panel">
+    <h3>Recomendación inteligente</h3>
+    <p>{{ recommendation() }}</p>
+  </article>
+} @else {
+  <article class="hint-panel">
+    <p>Selecciona al menos 2 equipos del inventario para generar la matriz comparativa.</p>
+    <a class="btn btn-secondary" routerLink="/matrices">Ir a Matrices</a>
+  </article>
+}

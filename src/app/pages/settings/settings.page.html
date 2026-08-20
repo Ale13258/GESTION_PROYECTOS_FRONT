@@ -1,0 +1,44 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Sistema</p>
+    <h1>Configuración</h1>
+    <p>Preferencias corporativas del prototipo ProManage Engineering.</p>
+  </div>
+</section>
+
+<article class="panel stack">
+  <div class="row"><strong>Tema:</strong> <span>Modo claro corporativo (azul / blanco / gris)</span></div>
+  <div class="row"><strong>Idioma:</strong> <span>Español</span></div>
+  <div class="row"><strong>Moneda:</strong> <span>COP</span></div>
+  <div class="row"><strong>Exportación:</strong> <span>PDF / Word</span></div>
+</article>
+
+<article class="panel session-panel">
+  <h2>Sesión de prototipo</h2>
+  <p>
+    Cambia de usuario para probar permisos. Los colaboradores no ven el menú
+    <strong>Usuarios</strong> y no pueden crear cuentas.
+  </p>
+
+  <label class="field-label" for="session-user">Usuario activo</label>
+  <select
+    id="session-user"
+    [ngModel]="auth.currentUser().id"
+    (ngModelChange)="switchUser($event)"
+  >
+    @for (user of auth.users(); track user.id) {
+      <option [value]="user.id" [disabled]="!user.active">
+        {{ user.name }} — {{ auth.roleLabel(user.role) }}
+        {{ user.active ? '' : '(inactivo)' }}
+      </option>
+    }
+  </select>
+
+  <div class="session-meta">
+    <span>Rol actual: <strong>{{ auth.roleLabel(auth.currentUser().role) }}</strong></span>
+    <span>
+      Puede crear usuarios:
+      <strong>{{ auth.canManageUsers() ? 'Sí' : 'No' }}</strong>
+    </span>
+  </div>
+</article>

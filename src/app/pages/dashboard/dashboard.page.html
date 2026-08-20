@@ -1,0 +1,109 @@
+<section class="dash-header">
+  <div>
+    <p class="eyebrow">Dashboard</p>
+    <h1>Panel general</h1>
+    <p>Resumen del estado de todos los proyectos de ingeniería</p>
+  </div>
+  <div class="header-actions">
+    <a class="btn btn-secondary" routerLink="/reportes">Ver reportes</a>
+    <a class="btn btn-primary" routerLink="/proyectos">+ Nuevo Proyecto</a>
+  </div>
+</section>
+
+<div class="kpi-grid">
+  @for (card of cards(); track card.label) {
+    <article class="kpi-card">
+      <div class="kpi-top">
+        <div class="kpi-icon" [class]="'kpi-icon tone-' + card.tone">
+          <span class="material-symbols-outlined">{{ card.icon }}</span>
+        </div>
+        <span class="kpi-badge" [class]="'kpi-badge badge-' + card.badgeTone">{{ card.badge }}</span>
+      </div>
+      <strong>{{ card.value }}</strong>
+      <span class="kpi-label">{{ card.label }}</span>
+    </article>
+  }
+</div>
+
+<div class="charts-row">
+  <article class="panel chart-panel">
+    <header class="panel-head">
+      <h2>Avance de proyecto por obra</h2>
+      <span>% completado</span>
+    </header>
+    <div class="bars">
+      @for (bar of barData(); track bar.name) {
+        <div class="bar-item">
+          <div class="bar-meta">
+            <span>{{ bar.name }}</span>
+            <strong>{{ bar.value }}</strong>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" [class]="'bar-fill fill-' + bar.tone" [style.width.%]="bar.value"></div>
+          </div>
+        </div>
+      }
+    </div>
+  </article>
+
+  <article class="panel chart-panel">
+    <header class="panel-head">
+      <h2>Estado de equipos</h2>
+      <span>{{ equipmentState().total }} equipos</span>
+    </header>
+    <div class="donut-wrap">
+      <div class="donut" [style.background]="donutGradient()">
+        <div class="donut-hole">
+          <strong>{{ equipmentState().total }}</strong>
+          <small>total</small>
+        </div>
+      </div>
+      <ul class="donut-legend">
+        @for (slice of equipmentState().slices; track slice.label) {
+          <li>
+            <i [style.background]="slice.color"></i>
+            <span>{{ slice.label }}</span>
+            <strong>{{ slice.value }}</strong>
+          </li>
+        }
+      </ul>
+    </div>
+  </article>
+</div>
+
+<section class="projects-panel">
+  <header class="projects-head">
+    <h2>Proyectos</h2>
+    <span>{{ projects().length }} en total</span>
+  </header>
+
+  <div class="project-cards">
+    @for (project of projects(); track project.id) {
+      <a class="project-card" [routerLink]="['/proyectos', project.id]">
+        <div class="project-banner"></div>
+        <div class="project-body">
+          <div class="project-title">
+            <span class="material-symbols-outlined">folder</span>
+            <div>
+              <strong>{{ project.name }}</strong>
+              <small>{{ project.client }} - {{ project.location }}</small>
+            </div>
+          </div>
+
+          <div class="progress-block">
+            <div class="progress-track">
+              <div class="progress-fill" [style.width.%]="project.progress"></div>
+            </div>
+            <div class="progress-meta">
+              <span>{{ project.progress }}% avance</span>
+              <span>{{ equipmentCount(project.id) }} equipos</span>
+            </div>
+          </div>
+
+          @let status = statusMeta(project.id, project.progress, project.status);
+          <span class="project-status" [class]="'project-status st-' + status.tone">{{ status.label }}</span>
+        </div>
+      </a>
+    }
+  </div>
+</section>

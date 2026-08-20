@@ -1,0 +1,330 @@
+<section class="page-header no-print">
+  <div>
+    <p class="eyebrow">Solicitudes de Aprobación</p>
+    <h1>Solicitudes de Aprobación</h1>
+    <p>Formatos generados automáticamente desde las matrices comparativas</p>
+  </div>
+  <button class="btn btn-primary gen-btn" type="button" (click)="generateNew()">
+    <span class="plus" aria-hidden="true">+</span>
+    Generar nueva solicitud
+  </button>
+</section>
+
+<section class="panel list-panel">
+  <div class="table-wrap">
+    <table class="approvals-table">
+      <thead>
+        <tr>
+          <th>Equipo</th>
+          <th>Proyecto</th>
+          <th>Solicitante</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of requests(); track item.id) {
+          <tr>
+            <td class="equip">{{ item.equipmentName }}</td>
+            <td>{{ item.projectName }}</td>
+            <td>{{ item.requester }}</td>
+            <td>
+              <span class="status-pill" [class]="statusClass(item.status)">
+                @if (item.status === 'Aprobada') {
+                  <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                    <path fill="currentColor" d="M6.5 11.2 3.4 8.1l1.1-1.1 2 2 4.4-4.4 1.1 1.1z" />
+                  </svg>
+                } @else if (item.status === 'En revisión') {
+                  <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                    <path
+                      fill="currentColor"
+                      d="M8 1.5A6.5 6.5 0 1 0 14.5 8 6.51 6.51 0 0 0 8 1.5zm0 11A4.5 4.5 0 1 1 12.5 8 4.5 4.5 0 0 1 8 12.5zm.75-7H7.25v4.1l3.4 2.05.75-1.23-2.65-1.58z"
+                    />
+                  </svg>
+                }
+                {{ item.status }}
+              </span>
+            </td>
+            <td class="date">{{ item.date }}</td>
+            <td>
+              <button class="view-link" type="button" (click)="view(item)">
+                <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M10 4.5C5.5 4.5 1.9 7.4 1 10c.9 2.6 4.5 5.5 9 5.5s8.1-2.9 9-5.5c-.9-2.6-4.5-5.5-9-5.5zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm0-5.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"
+                  />
+                </svg>
+                Ver
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="empty">Aún no hay solicitudes. Genera la primera.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+@if (activeRequest(); as req) {
+  <div class="modal-backdrop no-print" (click)="closeDetail()"></div>
+
+  <div class="modal-shell" role="dialog" aria-modal="true" aria-labelledby="approval-modal-title">
+    <header class="modal-head no-print">
+      <h2 id="approval-modal-title">Solicitud de Aprobación de Equipos</h2>
+      <button class="icon-close" type="button" (click)="closeDetail()" aria-label="Cerrar">×</button>
+    </header>
+
+    <div class="modal-body printable" id="approval-doc">
+      <div class="doc-header">
+        <label class="logo-box">
+          <span>{{ logoName() }}</span>
+          <input type="file" accept="image/*" hidden (change)="onLogoChange($event)" />
+        </label>
+        <div class="doc-meta">
+          <h3>SOLICITUD DE APROBACIÓN DE EQUIPOS</h3>
+          <p>Código: {{ docCode() }}</p>
+          <p>Fecha: {{ displayDate(req.date) }}</p>
+        </div>
+      </div>
+
+      <section class="doc-section">
+        <h4>1. INFORMACIÓN DEL PROYECTO</h4>
+        <div class="kv-grid">
+          <div class="kv">
+            <span class="k">Proyecto</span>
+            <span class="v">{{ project()?.name || req.projectName }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Contrato</span>
+            <span class="v">{{ contractCode() }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Cliente</span>
+            <span class="v">{{ project()?.client || '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Ubicación</span>
+            <span class="v">{{ project()?.location || '—' }}</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h4>2. INFORMACIÓN DEL EQUIPO</h4>
+        <div class="kv-grid">
+          <div class="kv">
+            <span class="k">Equipo</span>
+            <span class="v">{{ req.equipmentName }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Categoría</span>
+            <span class="v">{{ equipment()?.category || '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Fabricante</span>
+            <span class="v">{{ equipment()?.manufacturer || '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Modelo</span>
+            <span class="v">{{ equipment()?.model || '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Proveedor</span>
+            <span class="v">{{ equipment()?.supplier || '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Precio</span>
+            <span class="v">
+              @if (equipment(); as eq) {
+                {{ eq.price | currency: 'COP':'symbol-narrow':'1.0-0' }}
+              } @else {
+                —
+              }
+            </span>
+          </div>
+        </div>
+
+        <div class="info-block">
+          <div class="info-row">
+            <span class="k">Equipo a solicitar</span>
+            <span class="v">{{ equipment()?.name || req.equipmentName }}</span>
+          </div>
+          <div class="info-row">
+            <span class="k">Actividad</span>
+            <span class="v">{{ equipment()?.proceso || 'Instalación y puesta en marcha del equipo propuesto' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="k">Descripción</span>
+            <span class="v">{{
+              equipment()?.especificacionesTecnicas ||
+                equipment()?.nota ||
+                'Según especificaciones técnicas del contrato y matriz comparativa.'
+            }}</span>
+          </div>
+          <div class="info-row">
+            <span class="k">Referencia / Especificaciones del contrato</span>
+            <span class="v">{{ contractCode() }}</span>
+          </div>
+          <div class="info-row">
+            <span class="k">Proveedor / Fabricante propuesto</span>
+            <span class="v">{{ equipment()?.supplier || '—' }} / {{ equipment()?.manufacturer || '—' }}</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h4>3. ESPECIFICACIONES TÉCNICAS</h4>
+        <div class="kv-grid">
+          <div class="kv">
+            <span class="k">Caudal</span>
+            <span class="v">{{ equipment()?.specs?.caudal ?? '—' }} L/s</span>
+          </div>
+          <div class="kv">
+            <span class="k">Potencia</span>
+            <span class="v">{{ equipment()?.specs?.potencia ?? '—' }} kW</span>
+          </div>
+          <div class="kv">
+            <span class="k">Voltaje</span>
+            <span class="v">{{ equipment()?.specs?.voltaje ?? '—' }} V</span>
+          </div>
+          <div class="kv">
+            <span class="k">RPM</span>
+            <span class="v">{{ equipment()?.specs?.rpm ?? '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Material</span>
+            <span class="v">{{ equipment()?.specs?.material ?? '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Garantía</span>
+            <span class="v">{{ equipment()?.specs?.garantia ?? '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Tiempo de entrega</span>
+            <span class="v">{{ equipment()?.specs?.entregaDias ?? '—' }} días</span>
+          </div>
+          <div class="kv">
+            <span class="k">Cumplimiento técnico</span>
+            <span class="v">{{ equipment()?.specs?.cumplimiento ?? '—' }}%</span>
+          </div>
+        </div>
+
+        <h5>Características técnicas de las partes del equipo</h5>
+        <div class="table-scroll">
+          <table class="parts-table">
+            <thead>
+              <tr>
+                <th>Característica técnica</th>
+                <th>Descripción</th>
+                <th>Material</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of techRows(); track row.feature) {
+                <tr>
+                  <td>{{ row.feature }}</td>
+                  <td>{{ row.description }}</td>
+                  <td>{{ row.material }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="kv-grid compact-extra">
+          <div class="kv">
+            <span class="k">Clase</span>
+            <span class="v">F</span>
+          </div>
+          <div class="kv">
+            <span class="k">Factor de servicio</span>
+            <span class="v">1.1</span>
+          </div>
+          <div class="kv">
+            <span class="k">Apto para VDF</span>
+            <span class="v">SI</span>
+          </div>
+          <div class="kv">
+            <span class="k">Modo de operación</span>
+            <span class="v">Manual o automático</span>
+          </div>
+          <div class="kv wide">
+            <span class="k">Protocolo de comunicación</span>
+            <span class="v">Ethernet (Universal)</span>
+          </div>
+        </div>
+
+        <p class="tech-note">
+          <strong>Nota:</strong>
+          {{ equipment()?.nota || 'Contiene válvula desaireadora para gases retenidos.' }}
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <h4>DOCUMENTOS ADJUNTOS</h4>
+        <ul class="docs-list">
+          @for (doc of attachedDocs(); track doc) {
+            <li>{{ doc }}</li>
+          }
+        </ul>
+      </section>
+
+      <section class="doc-section">
+        <h4>4. RECOMENDACIÓN TÉCNICA</h4>
+        <p class="recommendation">{{ recommendation() }}</p>
+      </section>
+
+      <section class="doc-section response-section">
+        <h4>RESPUESTA DE LA INTERVENTORÍA</h4>
+        <div class="codes">
+          @for (opt of interventoriaOptions; track opt.code) {
+            <label class="code-option" [class.on]="interventoriaCode() === opt.code">
+              <input
+                type="radio"
+                name="interventoria"
+                [checked]="interventoriaCode() === opt.code"
+                (change)="interventoriaCode.set(opt.code)"
+              />
+              <span class="code-num">Código {{ opt.code }}</span>
+              <span>{{ opt.label }}</span>
+            </label>
+          }
+        </div>
+
+        <label class="field-label" for="interventoria-comments">Comentarios</label>
+        <textarea
+          id="interventoria-comments"
+          rows="3"
+          [ngModel]="interventoriaComments()"
+          (ngModelChange)="interventoriaComments.set($event)"
+          placeholder="Observaciones de la interventoría…"
+        ></textarea>
+
+        <div class="signoff">
+          <div>
+            <span class="k">Revisado / Aprobado por</span>
+            <input
+              type="text"
+              [ngModel]="reviewedBy()"
+              (ngModelChange)="reviewedBy.set($event)"
+            />
+          </div>
+          <div>
+            <span class="k">Fecha</span>
+            <strong>{{ today | date: 'dd/MM/yyyy' }}</strong>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="modal-foot no-print">
+      <button class="btn btn-secondary" type="button" (click)="closeDetail()">Cerrar</button>
+      <button class="btn btn-secondary" type="button" (click)="export('word')">Exportar Word</button>
+      <button class="btn btn-primary" type="button" (click)="export('pdf')">Exportar PDF</button>
+    </footer>
+  </div>
+}

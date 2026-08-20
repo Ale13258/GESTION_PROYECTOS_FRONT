@@ -1,0 +1,165 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Cotizaciones</p>
+    <h1>Cotizaciones</h1>
+    <p>Seguimiento de cotizaciones por proyecto</p>
+  </div>
+</section>
+
+<div class="kpi-row">
+  <article class="kpi-card">
+    <div>
+      <span>Equipos cotizados</span>
+      <strong>{{ stats().equipmentCount }}</strong>
+    </div>
+  </article>
+  <article class="kpi-card">
+    <div>
+      <span>Cotizaciones recibidas</span>
+      <strong>{{ stats().received }}</strong>
+    </div>
+  </article>
+  <article class="kpi-card">
+    <div>
+      <span>Valor cotización final</span>
+      <strong>{{ formatMoney(stats().finalValue) }}</strong>
+    </div>
+  </article>
+  <article class="kpi-card">
+    <div>
+      <span>Ahorro vs. promedio ofertado</span>
+      <strong>{{ formatMoney(stats().savings) }}</strong>
+    </div>
+  </article>
+</div>
+
+<div class="actions-row">
+  <button class="btn btn-primary" type="button" (click)="openModal()">+ Nueva Cotización</button>
+</div>
+
+<div class="groups">
+  @for (group of groups(); track group.projectId + group.equipmentName) {
+    <section class="quote-group">
+      <header class="group-head">
+        <h2>{{ group.equipmentName }}</h2>
+        <span>{{ group.projectName }} · {{ group.offers.length }} ofertas</span>
+      </header>
+
+      <div class="table-scroll">
+        <table class="quote-table">
+          <thead>
+            <tr>
+              <th>Proveedor</th>
+              <th>Valor</th>
+              <th>Entrega</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (offer of group.offers; track offer.id) {
+              <tr>
+                <td>
+                  <div class="supplier-cell">
+                    <strong>{{ offer.supplier }}</strong>
+                    @if (offer.isFinal || offer.status === 'Aprobada') {
+                      <span class="final-tag">FINAL</span>
+                    }
+                  </div>
+                </td>
+                <td>
+                  <span class="amount" [class]="valueClass(offer.amount, group)">
+                    {{ formatMoney(offer.amount) }}
+                  </span>
+                </td>
+                <td>{{ offer.deliveryDays }} días</td>
+                <td>
+                  <span class="status-pill" [class]="statusClass(offer.status) + ' status-pill'">
+                    {{ statusLabel(offer.status) }}
+                  </span>
+                </td>
+                <td class="date">{{ offer.date }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (group.finalOffer; as final) {
+        <footer class="group-foot">
+          ✓ Cotización final seleccionada:
+          <strong>{{ final.supplier }} — {{ formatMoney(final.amount) }}</strong>
+        </footer>
+      }
+    </section>
+  } @empty {
+    <p class="empty">No hay cotizaciones. Crea la primera con “+ Nueva Cotización”.</p>
+  }
+</div>
+
+@if (showModal()) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal quote-modal" (click)="$event.stopPropagation()">
+      <h2>Nueva Cotización</h2>
+      <p class="muted intro">Registra una oferta de proveedor para un equipo.</p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Proyecto</label>
+          <select [(ngModel)]="form.projectId">
+            @for (project of data.projects(); track project.id) {
+              <option [value]="project.id">{{ project.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Estado</label>
+          <select [(ngModel)]="form.status">
+            <option value="En revisión">En revisión</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Aprobada">Aprobada</option>
+            <option value="Rechazada">Rechazada</option>
+          </select>
+        </div>
+
+        <div class="field full">
+          <label>Equipo</label>
+          <input [(ngModel)]="form.equipmentName" placeholder="Ej. Bomba Centrífuga HD-500" />
+        </div>
+
+        <div class="field full">
+          <label>Proveedor</label>
+          <input [(ngModel)]="form.supplier" placeholder="Nombre del proveedor" />
+        </div>
+
+        <div class="field">
+          <label>Valor (COP)</label>
+          <input type="number" min="0" [(ngModel)]="form.amount" />
+        </div>
+
+        <div class="field">
+          <label>Entrega (días)</label>
+          <input type="number" min="0" [(ngModel)]="form.deliveryDays" />
+        </div>
+
+        <div class="field">
+          <label>Fecha</label>
+          <input type="date" [(ngModel)]="form.date" />
+        </div>
+      </div>
+
+      <div class="row form-actions">
+        <button class="btn btn-secondary" type="button" (click)="closeModal()">Cancelar</button>
+        <button
+          class="btn btn-primary"
+          type="button"
+          [disabled]="!form.equipmentName.trim() || !form.supplier.trim()"
+          (click)="createQuotation()"
+        >
+          Guardar cotización
+        </button>
+      </div>
+    </div>
+  </div>
+}

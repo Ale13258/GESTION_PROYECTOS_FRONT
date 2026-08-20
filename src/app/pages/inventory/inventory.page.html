@@ -1,0 +1,308 @@
+<section class="page-header inventory-header">
+  <div>
+    <h1>Inventario Técnico</h1>
+    <p>Todos los equipos registrados a través de los proyectos.</p>
+  </div>
+</section>
+
+<div class="inventory-toolbar">
+  <div class="filters-row">
+    <select [ngModel]="filterProject()" (ngModelChange)="filterProject.set($event)">
+      <option value="">Todos los proyectos</option>
+      @for (project of data.projects(); track project.id) {
+        <option [value]="project.id">{{ project.name }}</option>
+      }
+    </select>
+
+    <select [ngModel]="filterCategory()" (ngModelChange)="filterCategory.set($event)">
+      <option value="">Todos los procesos</option>
+      @for (process of processFilterOptions(); track process) {
+        <option [value]="process">{{ process }}</option>
+      }
+    </select>
+
+    <input
+      class="search-input"
+      type="search"
+      placeholder="Buscar equipo, material o fuente…"
+      [ngModel]="filterText()"
+      (ngModelChange)="filterText.set($event)"
+    />
+  </div>
+
+  <div class="toolbar-right">
+    <button class="btn btn-primary" type="button" (click)="openModal()">+ Nuevo Equipo</button>
+    <span class="count-label">{{ list().length }} equipos</span>
+  </div>
+</div>
+
+<div class="board">
+  <div class="table-scroll">
+    <table class="inventory-table">
+      <thead>
+        <tr>
+          <th class="col-proceso">Proceso</th>
+          <th class="col-equipo">Equipo</th>
+          <th class="col-cantidad">Cantidad</th>
+          <th class="col-specs">Especificaciones Técnicas</th>
+          <th class="col-dims">Dimensiones / Capacidad de Diseño</th>
+          <th class="col-material">Material</th>
+          <th class="col-fuente">Fuente (Manual O&amp;M)</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of list(); track item.id) {
+          <tr (click)="openDetail(item)">
+            <td class="col-proceso" [title]="item.proceso">{{ item.proceso }}</td>
+            <td class="col-equipo">
+              <div class="equip-cell">
+                <span class="equip-mark">{{ item.name.charAt(0) }}</span>
+                <strong>{{ item.name }}</strong>
+              </div>
+            </td>
+            <td class="col-cantidad">{{ item.cantidad }}</td>
+            <td class="col-specs" [title]="item.especificacionesTecnicas">
+              <span class="clamp-3">{{ item.especificacionesTecnicas || '—' }}</span>
+            </td>
+            <td class="col-dims" [title]="item.dimensionesCapacidad">
+              <span class="clamp-3">{{ item.dimensionesCapacidad || '—' }}</span>
+            </td>
+            <td class="col-material" [title]="item.specs.material">{{ item.specs.material }}</td>
+            <td class="col-fuente" [title]="item.fuenteManual">{{ item.fuenteManual || '—' }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="empty-row">No hay equipos. Crea el primero con “+ Nuevo Equipo”.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+@if (showModal()) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal modal-wide" (click)="$event.stopPropagation()">
+      <h2>Nuevo Equipo</h2>
+      <p class="muted intro">Datos del listado técnico y archivos relacionados.</p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Proyecto</label>
+          <select [(ngModel)]="form.projectId">
+            @for (project of data.projects(); track project.id) {
+              <option [value]="project.id">{{ project.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Proceso</label>
+          <select [(ngModel)]="form.proceso">
+            @for (process of processOptions; track process) {
+              <option [value]="process">{{ process }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Equipo</label>
+          <input [(ngModel)]="form.name" placeholder="Ej. Bomba Centrífuga HD-500" />
+        </div>
+
+        <div class="field">
+          <label>Cantidad</label>
+          <input [(ngModel)]="form.cantidad" placeholder="Ej. 2 (1+1 stand-by)" />
+        </div>
+
+        <div class="field full">
+          <label>Especificaciones técnicas</label>
+          <textarea rows="2" [(ngModel)]="form.especificacionesTecnicas"></textarea>
+        </div>
+
+        <div class="field full">
+          <label>Dimensiones / Capacidad de diseño</label>
+          <textarea rows="2" [(ngModel)]="form.dimensionesCapacidad"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Material</label>
+          <input [(ngModel)]="form.material" placeholder="Ej. Acero inoxidable" />
+        </div>
+
+        <div class="field">
+          <label>Fuente (Manual O&amp;M)</label>
+          <input [(ngModel)]="form.fuenteManual" placeholder="Ej. Num. 1.4.1, pág. 17" />
+        </div>
+
+        <div class="field full">
+          <label>Nota</label>
+          <textarea
+            class="note-input"
+            rows="2"
+            [(ngModel)]="form.nota"
+            placeholder="Observaciones del equipo"
+          ></textarea>
+        </div>
+
+        <div class="field full">
+          <label>Archivos relacionados</label>
+          <div class="attach-panel">
+            <div class="type-chips">
+              @for (cat of fileCategories; track cat.value) {
+                <button
+                  type="button"
+                  class="type-chip"
+                  [class.active]="formUploadCategory() === cat.value"
+                  (click)="formUploadCategory.set(cat.value)"
+                >
+                  {{ cat.label }}
+                </button>
+              }
+            </div>
+
+            <label class="drop-zone">
+              <input type="file" multiple hidden (change)="onFormFiles($event)" />
+              <strong>Haz clic para subir</strong>
+              <span>Imágenes, planos, fichas, manuales o cotizaciones</span>
+            </label>
+
+            @if (form.imagePreview) {
+              <img class="preview-thumb" [src]="form.imagePreview" alt="Vista previa" />
+            }
+
+            @if (form.files.length) {
+              <ul class="file-list">
+                @for (file of form.files; track file.id) {
+                  <li>
+                    <span class="file-tag">{{ file.typeLabel }}</span>
+                    <div class="file-meta">
+                      <strong>{{ file.name }}</strong>
+                      <small>{{ file.size }}</small>
+                    </div>
+                    <button class="link-btn" type="button" (click)="removeFormFile(file.id)">Quitar</button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="row modal-actions">
+        <button class="btn btn-secondary" type="button" (click)="closeModal()">Cancelar</button>
+        <button
+          class="btn btn-primary"
+          type="button"
+          [disabled]="!form.name.trim() || !form.projectId"
+          (click)="createEquipment()"
+        >
+          Guardar equipo
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (selected(); as eq) {
+  <div class="drawer-backdrop" (click)="closeDetail()"></div>
+  <aside class="drawer detail-drawer">
+    <div class="drawer-body detail-body">
+      <header class="detail-head">
+        <div>
+          <h2>{{ eq.name }}</h2>
+          <p class="meta">{{ eq.category }} · {{ eq.manufacturer }} · {{ eq.model }}</p>
+          <div class="row status-row">
+            <span class="status-pill" [class]="statusClass(eq.status) + ' status-pill'">{{ eq.status }}</span>
+            <strong class="price">{{ formatPrice(eq.price) }}</strong>
+          </div>
+        </div>
+        <button class="link-btn" type="button" (click)="closeDetail()">Cerrar</button>
+      </header>
+
+      <section>
+        <h3>Especificaciones Técnicas</h3>
+        <div class="spec-grid">
+          <article><span>CAUDAL</span><strong>{{ eq.specs.caudal || '—' }} L/s</strong></article>
+          <article><span>POTENCIA</span><strong>{{ eq.specs.potencia || '—' }} kW</strong></article>
+          <article><span>VOLTAJE</span><strong>{{ eq.specs.voltaje || '—' }} V</strong></article>
+          <article><span>RPM</span><strong>{{ eq.specs.rpm || '—' }}</strong></article>
+          <article><span>MATERIAL</span><strong>{{ eq.specs.material }}</strong></article>
+          <article><span>GARANTÍA</span><strong>{{ eq.specs.garantia }}</strong></article>
+        </div>
+      </section>
+
+      <section>
+        <h3>Archivos</h3>
+        <div class="attach-panel">
+          <div class="type-chips">
+            @for (cat of fileCategories; track cat.value) {
+              <button
+                type="button"
+                class="type-chip"
+                [class.active]="uploadCategory() === cat.value"
+                (click)="uploadCategory.set(cat.value)"
+              >
+                {{ cat.label }}
+              </button>
+            }
+          </div>
+
+          <label class="drop-zone compact">
+            <input type="file" multiple hidden (change)="onDetailFiles($event)" />
+            <strong>Subir archivo</strong>
+            <span>Selecciona el tipo y haz clic aquí</span>
+          </label>
+
+          <ul class="file-list">
+            @for (file of eq.files; track file.id) {
+              <li>
+                <span class="file-tag">{{ file.typeLabel }}</span>
+                <div class="file-meta">
+                  <strong>{{ file.name }}</strong>
+                  <small>{{ file.size }}</small>
+                </div>
+              </li>
+            } @empty {
+              <li class="empty-files">Sin archivos adjuntos</li>
+            }
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h3>Historial</h3>
+        <ul class="timeline">
+          @for (h of eq.history; track h.date + h.event) {
+            <li [class]="'tone-' + (h.tone || 'blue')">
+              <i></i>
+              <div>
+                <strong>{{ h.event }}</strong>
+                <small>{{ h.date }}</small>
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <section class="note-section">
+        <h3>Nota</h3>
+        <textarea
+          class="note-input"
+          rows="2"
+          [ngModel]="noteDraft()"
+          (ngModelChange)="noteDraft.set($event)"
+          placeholder="Añadir nota…"
+        ></textarea>
+      </section>
+
+      <div class="detail-actions">
+        <button class="btn btn-secondary full" type="button" (click)="saveNote()">Guardar nota</button>
+        <button class="btn btn-primary full" type="button" (click)="generateApproval()">
+          Generar Solicitud
+        </button>
+        <button class="btn btn-secondary full" type="button" (click)="closeDetail()">Cerrar</button>
+      </div>
+    </div>
+  </aside>
+}

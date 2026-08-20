@@ -1,0 +1,117 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Matrices Comparativas</p>
+    <h1>Matrices Comparativas</h1>
+    <p>Selecciona hasta 3 equipos del inventario y genera la matriz automática.</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-secondary" type="button" (click)="clearSelection()">Limpiar</button>
+    <button
+      class="btn btn-primary"
+      type="button"
+      [disabled]="selected().length < 2"
+      (click)="generateMatrix()"
+    >
+      Generar matriz
+    </button>
+  </div>
+</section>
+
+<div class="selection-bar">
+  <div>
+    <strong>{{ selected().length }}/3</strong>
+    <span>equipos seleccionados</span>
+  </div>
+  <div class="chips">
+    @for (item of selected(); track item.id) {
+      <span class="chip">
+        {{ item.name }}
+        <button type="button" (click)="toggle(item.id)">×</button>
+      </span>
+    } @empty {
+      <span class="hint">Marca 2 o 3 equipos abajo para comparar</span>
+    }
+  </div>
+</div>
+
+<section class="panel pick-panel">
+  <div class="panel-toolbar">
+    <h2>Equipos del inventario</h2>
+    <input
+      type="search"
+      placeholder="Buscar equipo, proceso o fabricante…"
+      [ngModel]="filter()"
+      (ngModelChange)="filter.set($event)"
+    />
+  </div>
+
+  <div class="pick-grid">
+    @for (item of catalog(); track item.id) {
+      <label class="pick-card" [class.selected]="isSelected(item.id)">
+        <input
+          type="checkbox"
+          [checked]="isSelected(item.id)"
+          [disabled]="!isSelected(item.id) && selected().length >= 3"
+          (change)="toggle(item.id)"
+        />
+        <span class="mark">{{ item.name.charAt(0) }}</span>
+        <div class="pick-body">
+          <strong>{{ item.name }}</strong>
+          <small>{{ projectName(item.projectId) }}</small>
+          <div class="pick-meta">
+            <span class="tag">{{ item.specs.cumplimiento || 0 }}%</span>
+            <span class="mat">{{ item.specs.material }}</span>
+          </div>
+        </div>
+        <span class="check" aria-hidden="true"></span>
+      </label>
+    } @empty {
+      <p class="empty">No hay equipos en el inventario.</p>
+    }
+  </div>
+</section>
+
+@if (matrixReady() && selected().length >= 2) {
+  <section class="panel matrix-panel">
+    <header class="matrix-head">
+      <div>
+        <h2>Matriz comparativa</h2>
+        <p>Mejores valores en verde · peores en rojo</p>
+      </div>
+      <a class="btn btn-primary" routerLink="/aprobaciones">Generar Solicitud</a>
+    </header>
+
+    <div class="table-scroll">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>Característica</th>
+            @for (item of selected(); track item.id) {
+              <th>{{ item.name }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows; track row.key) {
+            <tr>
+              <td><strong>{{ row.label }}</strong></td>
+              @for (item of selected(); track item.id) {
+                <td [class]="cellClass(row, item)">{{ displayValue(row, item) }}</td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <article class="ai-box">
+      <h3>Recomendación inteligente</h3>
+      <p>{{ recommendation() }}</p>
+    </article>
+  </section>
+} @else if (selected().length >= 2) {
+  <div class="cta-box">
+    <p>Ya tienes {{ selected().length }} equipos listos. Genera la matriz para ver la comparación.</p>
+    <button class="btn btn-primary" type="button" (click)="generateMatrix()">Generar matriz</button>
+  </div>
+}

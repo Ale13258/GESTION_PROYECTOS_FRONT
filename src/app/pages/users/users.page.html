@@ -1,0 +1,117 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Administración</p>
+    <h1>Usuarios</h1>
+    <p>Crea colaboradores con acceso operativo. No podrán crear ni administrar usuarios.</p>
+  </div>
+  @if (auth.canManageUsers()) {
+    <button class="btn btn-primary" type="button" (click)="openModal()">+ Nuevo usuario</button>
+  }
+</section>
+
+@if (!auth.canManageUsers()) {
+  <article class="panel denied">
+    <h2>Acceso restringido</h2>
+    <p>
+      Solo el administrador puede crear y gestionar usuarios. Tú puedes subir información,
+      editar inventario, cotizaciones y el resto de módulos operativos.
+    </p>
+  </article>
+} @else {
+  <section class="panel list-panel">
+    <div class="table-wrap">
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Cargo</th>
+            <th>Estado</th>
+            <th>Creado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of auth.users(); track user.id) {
+            <tr>
+              <td>
+                <div class="user-cell">
+                  <span class="avatar">{{ auth.initials(user.name) }}</span>
+                  <div>
+                    <strong>{{ user.name }}</strong>
+                    <small>{{ user.email }}</small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="role-pill" [class.admin]="user.role === 'admin'">
+                  {{ auth.roleLabel(user.role) }}
+                </span>
+              </td>
+              <td>{{ user.title }}</td>
+              <td>
+                <span class="status-pill" [class.on]="user.active" [class.off]="!user.active">
+                  {{ user.active ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td class="muted">{{ user.createdAt }}</td>
+              <td>
+                @if (user.role !== 'admin') {
+                  <button
+                    class="btn btn-secondary btn-sm"
+                    type="button"
+                    (click)="toggleActive(user.id, !user.active)"
+                  >
+                    {{ user.active ? 'Desactivar' : 'Activar' }}
+                  </button>
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}
+
+@if (showModal()) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal user-modal" (click)="$event.stopPropagation()">
+      <h2>Nuevo colaborador</h2>
+      <p class="intro">
+        Tendrá acceso a proyectos, inventario, proveedores, matrices, cotizaciones,
+        aprobaciones y reportes. <strong>No podrá crear usuarios.</strong>
+      </p>
+
+      <div class="form-grid">
+        <div class="field full">
+          <label>Nombre completo</label>
+          <input [(ngModel)]="form.name" placeholder="Ej. Sofía Vargas" />
+        </div>
+        <div class="field">
+          <label>Correo</label>
+          <input type="email" [(ngModel)]="form.email" placeholder="sofia@empresa.com" />
+        </div>
+        <div class="field">
+          <label>Cargo</label>
+          <input [(ngModel)]="form.title" placeholder="Ingeniero de Proyectos" />
+        </div>
+        <div class="field full">
+          <label>Contraseña temporal</label>
+          <input type="password" [(ngModel)]="form.password" placeholder="Mínimo 6 caracteres" />
+        </div>
+      </div>
+
+      @if (error()) {
+        <p class="error">{{ error() }}</p>
+      }
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" (click)="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" type="button" (click)="createUser()">Crear usuario</button>
+      </div>
+    </div>
+  </div>
+}

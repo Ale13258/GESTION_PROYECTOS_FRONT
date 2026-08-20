@@ -1,0 +1,109 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Reportes</p>
+    <h1>Reportes</h1>
+    <p>Indicadores consolidados de todos los proyectos</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-secondary" type="button" (click)="exportExcel()">
+      <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M10 2.5a.75.75 0 0 1 .75.75v7.19l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 0 1 1.06-1.06l2.22 2.22V3.25A.75.75 0 0 1 10 2.5zM3.5 13.25a.75.75 0 0 1 .75.75v1.5h11.5v-1.5a.75.75 0 0 1 1.5 0v2.25c0 .41-.34.75-.75.75H3.5a.75.75 0 0 1-.75-.75V14a.75.75 0 0 1 .75-.75z"
+        />
+      </svg>
+      Exportar Excel
+    </button>
+    <button class="btn btn-primary" type="button" (click)="exportPdf()">
+      <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M5.5 2.5A1.5 1.5 0 0 0 4 4v2.5h12V4a1.5 1.5 0 0 0-1.5-1.5h-9zM16 8H4v8a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 16 16V8zm-8.25 2.5h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5zm0 3h3a.75.75 0 0 1 0 1.5h-3a.75.75 0 0 1 0-1.5z"
+        />
+      </svg>
+      Exportar PDF
+    </button>
+  </div>
+</section>
+
+<div class="reports-grid">
+  <article class="panel chart-card">
+    <h2>Equipos por proyecto</h2>
+    <div class="vbars">
+      @for (bar of equipmentByProject(); track bar.name) {
+        <div class="vbar">
+          <strong>{{ bar.value }}</strong>
+          <div class="vbar-track">
+            <div
+              class="vbar-fill"
+              [style.height.%]="barHeight(bar.value, barMax(equipmentByProject()))"
+              [style.background]="bar.color"
+            ></div>
+          </div>
+          <span>{{ bar.name }}</span>
+        </div>
+      }
+    </div>
+  </article>
+
+  <article class="panel chart-card">
+    <h2>Cumplimiento global</h2>
+    <div class="donut-wrap">
+      <div class="donut" [style.background]="donutGradient()">
+        <div class="donut-hole">
+          <strong>{{ compliance().total }}</strong>
+          <small>TOTAL</small>
+        </div>
+      </div>
+      <ul class="donut-legend">
+        @for (slice of compliance().slices; track slice.label) {
+          <li>
+            <i [style.background]="slice.color"></i>
+            <span>{{ slice.label }}</span>
+            <strong>{{ slice.value }}</strong>
+          </li>
+        }
+      </ul>
+    </div>
+  </article>
+
+  <article class="panel chart-card">
+    <h2>Valor cotizado por proyecto</h2>
+    <div class="vbars">
+      @for (bar of quotedByProject(); track bar.name) {
+        <div class="vbar">
+          <strong>{{ bar.value }}</strong>
+          <div class="vbar-track">
+            <div
+              class="vbar-fill"
+              [style.height.%]="barHeight(bar.value, barMax(quotedByProject()))"
+              [style.background]="bar.color"
+            ></div>
+          </div>
+          <span>{{ bar.name }}</span>
+        </div>
+      }
+    </div>
+    <p class="chart-foot">valores en millones COP</p>
+  </article>
+
+  <article class="panel chart-card">
+    <h2>Tiempo promedio de análisis</h2>
+    <div class="vbars">
+      @for (bar of analysisTime(); track bar.name) {
+        <div class="vbar">
+          <strong>{{ bar.value }}</strong>
+          <div class="vbar-track">
+            <div
+              class="vbar-fill"
+              [style.height.%]="barHeight(bar.value, barMax(analysisTime()))"
+              [style.background]="bar.color"
+            ></div>
+          </div>
+          <span>{{ bar.name }}</span>
+        </div>
+      }
+    </div>
+    <p class="chart-foot">días promedio</p>
+  </article>
+</div>
