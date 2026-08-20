@@ -2,7 +2,10 @@
   <div>
     <p class="eyebrow">Administración</p>
     <h1>Usuarios</h1>
-    <p>Crea colaboradores con acceso operativo. No podrán crear ni administrar usuarios.</p>
+    <p>
+      Crea usuarios, asígnales un rol y ellos reciben un correo para crear su contraseña y entrar al
+      sistema.
+    </p>
   </div>
   @if (auth.canManageUsers()) {
     <button class="btn btn-primary" type="button" (click)="openModal()">+ Nuevo usuario</button>
@@ -18,6 +21,17 @@
     </p>
   </article>
 } @else {
+  @if (lastInvite(); as invite) {
+    <article class="panel invite-banner">
+      <div>
+        <strong>El correo no salió.</strong>
+        <p>Copia este enlace y envíaselo a {{ invite.email }} para que cree su contraseña.</p>
+        <code>{{ invite.url }}</code>
+      </div>
+      <button class="btn btn-secondary" type="button" (click)="copyInvite()">Copiar enlace</button>
+    </article>
+  }
+
   <section class="panel list-panel">
     <div class="table-wrap">
       <table class="users-table">
@@ -50,23 +64,38 @@
               </td>
               <td>{{ user.title }}</td>
               <td>
-                <span class="status-pill" [class.on]="user.active" [class.off]="!user.active">
-                  {{ user.active ? 'Activo' : 'Inactivo' }}
+                <span
+                  class="status-pill"
+                  [class.on]="user.active && !user.mustSetPassword"
+                  [class.wait]="user.active && user.mustSetPassword"
+                  [class.off]="!user.active"
+                >
+                  {{ statusLabel(user) }}
                 </span>
               </td>
               <td class="muted">{{ user.createdAt }}</td>
               <td>
-                @if (user.role !== 'admin') {
-                  <button
-                    class="btn btn-secondary btn-sm"
-                    type="button"
-                    (click)="toggleActive(user.id, !user.active)"
-                  >
-                    {{ user.active ? 'Desactivar' : 'Activar' }}
-                  </button>
-                } @else {
-                  <span class="muted">—</span>
-                }
+                <div class="row-actions">
+                  @if (user.mustSetPassword) {
+                    <button
+                      class="btn btn-secondary btn-sm"
+                      type="button"
+                      [disabled]="busy()"
+                      (click)="resendInvite(user)"
+                    >
+                      Reenviar invitación
+                    </button>
+                  }
+                  @if (user.role !== 'admin') {
+                    <button
+                      class="btn btn-secondary btn-sm"
+                      type="button"
+                      (click)="toggleActive(user.id, !user.active)"
+                    >
+                      {{ user.active ? 'Desactivar' : 'Activar' }}
+                    </button>
+                  }
+                </div>
               </td>
             </tr>
           }
@@ -79,10 +108,9 @@
 @if (showModal()) {
   <div class="modal-backdrop" (click)="closeModal()">
     <div class="modal user-modal" (click)="$event.stopPropagation()">
-      <h2>Nuevo colaborador</h2>
+      <h2>Nuevo usuario</h2>
       <p class="intro">
-        Tendrá acceso a proyectos, inventario, proveedores, matrices, cotizaciones,
-        aprobaciones y reportes. <strong>No podrá crear usuarios.</strong>
+        Al asignar el rol se envía un correo para que cree su contraseña y acceda al sistema.
       </p>
 
       <div class="form-grid">
@@ -99,8 +127,19 @@
           <input [(ngModel)]="form.title" placeholder="Ingeniero de Proyectos" />
         </div>
         <div class="field full">
-          <label>Contraseña temporal</label>
-          <input type="password" [(ngModel)]="form.password" placeholder="Mínimo 6 caracteres" />
+          <label>Rol</label>
+          <select [(ngModel)]="form.role">
+            <option value="collaborator">Colaborador</option>
+            <option value="admin">Administrador</option>
+          </select>
+          <small class="hint">
+            @if (form.role === 'admin') {
+              Podrá crear y gestionar usuarios, además de todos los módulos.
+            } @else {
+              Acceso operativo a proyectos, inventario, cotizaciones y aprobaciones. No podrá crear
+              usuarios.
+            }
+          </small>
         </div>
       </div>
 
@@ -110,7 +149,9 @@
 
       <div class="modal-actions">
         <button class="btn btn-secondary" type="button" (click)="closeModal()">Cancelar</button>
-        <button class="btn btn-primary" type="button" (click)="createUser()">Crear usuario</button>
+        <button class="btn btn-primary" type="button" [disabled]="busy()" (click)="createUser()">
+          {{ busy() ? 'Enviando…' : 'Crear y enviar invitación' }}
+        </button>
       </div>
     </div>
   </div>

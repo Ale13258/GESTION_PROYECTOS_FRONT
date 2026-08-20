@@ -3,10 +3,11 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { FormsModule } from '@angular/forms';
 import { DataService } from './core/services/data.service';
 import { AuthService } from './core/services/auth.service';
+import { UiFeedbackComponent } from './shared/ui-feedback/ui-feedback.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, FormsModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, FormsModule, UiFeedbackComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

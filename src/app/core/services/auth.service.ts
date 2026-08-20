@@ -5,8 +5,9 @@ import {
   NewUserForm,
   UserRole,
 } from '../models/promanage.models';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ApiService } from '../api/api.service';
-import { apiErrorCode } from '../api/http-error';
+import { apiErrorCode, apiErrorMessage } from '../api/http-error';
 import { AuthUserDto, LoginResponse, mapUser } from '../api/mappers';
 import { TokenStore } from '../api/token.store';
 
@@ -98,7 +99,9 @@ export class AuthService {
   async login(
     email: string,
     password: string,
-  ): Promise<{ ok: true } | { ok: false; reason: 'invalid' | 'inactive' | 'network' }> {
+  ): Promise<
+    { ok: true } | { ok: false; reason: 'invalid' | 'inactive' | 'password_not_set' | 'network' | 'server'; message?: string }
+  > {
     try {
       const session = await this.api.post<LoginResponse>(
         '/auth/login',
@@ -111,8 +114,12 @@ export class AuthService {
     } catch (error) {
       const code = apiErrorCode(error);
       if (code === 'USER_INACTIVE') return { ok: false, reason: 'inactive' };
+      if (code === 'PASSWORD_NOT_SET') return { ok: false, reason: 'password_not_set' };
       if (code === 'INVALID_CREDENTIALS') return { ok: false, reason: 'invalid' };
-      return { ok: false, reason: 'network' };
+      if (error instanceof HttpErrorResponse && error.status === 0) {
+        return { ok: false, reason: 'network' };
+      }
+      return { ok: false, reason: 'server', message: apiErrorMessage(error) };
     }
   }
 
@@ -134,20 +141,39 @@ export class AuthService {
     this.usersSignal.set(rows.map(mapUser));
   }
 
-  async addCollaborator(form: NewUserForm): Promise<AppUser | null> {
+  async addCollaborator(form: NewUserForm): Promise<(AppUser & { inviteEmailSent?: boolean; inviteUrl?: string }) | null> {
     if (!this.canManageUsers()) return null;
+    const created = await this.api.post<AuthUserDto>('/users', {
+      name: form.name.trim(),
+      email: form.email.trim().toLowerCase(),
+      title: form.title.trim() || undefined,
+      role: form.role,
+    });
+    const user = mapUser(created);
+    this.usersSignal.update((list) => [user, ...list]);
+    return { ...user, inviteEmailSent: created.inviteEmailSent, inviteUrl: created.inviteUrl };
+  }
+
+  async resendInvite(userId: string): Promise<{ inviteEmailSent: boolean; inviteUrl?: string }> {
+    const created = await this.api.post<AuthUserDto>(`/users/${userId}/invite`);
+    this.usersSignal.update((list) =>
+      list.map((u) => (u.id === userId ? { ...u, mustSetPassword: true } : u)),
+    );
+    return { inviteEmailSent: Boolean(created.inviteEmailSent), inviteUrl: created.inviteUrl };
+  }
+
+  async previewInvite(token: string): Promise<{ name: string; email: string; role: UserRole }> {
+    return this.api.get('/auth/invite', { token }, true);
+  }
+
+  async setPasswordFromInvite(token: string, password: string): Promise<{ ok: true } | { ok: false; message: string }> {
     try {
-      const created = await this.api.post<AuthUserDto>('/users', {
-        name: form.name.trim(),
-        email: form.email.trim().toLowerCase(),
-        title: form.title.trim() || undefined,
-        password: form.password.trim(),
-      });
-      const user = mapUser(created);
-      this.usersSignal.update((list) => [user, ...list]);
-      return user;
-    } catch {
-      return null;
+      const session = await this.api.post<LoginResponse>('/auth/set-password', { token, password }, true);
+      this.applySession(session);
+      await this.refreshUsers().catch(() => undefined);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, message: apiErrorMessage(error, 'No se pudo crear la contraseña.') };
     }
   }
 

@@ -20,9 +20,12 @@ export interface AuthUserDto {
   title: string | null;
   role: UserRole;
   active: boolean;
+  mustSetPassword?: boolean;
   createdAt: string;
   updatedAt?: string;
   permissions?: AppPermission[];
+  inviteEmailSent?: boolean;
+  inviteUrl?: string;
 }
 
 export interface LoginResponse {
@@ -45,6 +48,7 @@ export function mapUser(dto: AuthUserDto): AppUser {
     role: dto.role,
     title: dto.title ?? '',
     active: dto.active,
+    mustSetPassword: Boolean(dto.mustSetPassword),
     createdAt: String(dto.createdAt).slice(0, 10),
     createdBy: '',
   };

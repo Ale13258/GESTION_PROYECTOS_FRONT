@@ -14,6 +14,7 @@ import { SettingsPage } from './pages/settings/settings.page';
 import { ComparatorPage } from './pages/comparator/comparator.page';
 import { UsersPage } from './pages/users/users.page';
 import { LoginPage } from './pages/login/login.page';
+import { SetPasswordPage } from './pages/set-password/set-password.page';
 
 const appRoutes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -34,6 +35,7 @@ const appRoutes: Routes = [
 
 export const routes: Routes = [
   { path: 'login', component: LoginPage, canActivate: [guestGuard] },
+  { path: 'invitar', component: SetPasswordPage },
   {
     path: '',
     canActivate: [authGuard],

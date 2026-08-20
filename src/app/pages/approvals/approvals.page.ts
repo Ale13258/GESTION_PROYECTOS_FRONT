@@ -5,6 +5,8 @@ import { ActivatedRoute } from '@angular/router';
 import { jsPDF } from 'jspdf';
 import { ApprovalRequest, ApprovalStatus, DocumentItem, Equipment, EquipmentFile } from '../../core/models/promanage.models';
 import { DataService } from '../../core/services/data.service';
+import { apiErrorMessage } from '../../core/api/http-error';
+import { UiFeedbackService } from '../../shared/ui-feedback/ui-feedback.service';
 
 type InterventoriaCode = 1 | 2 | 3 | 4 | 5 | null;
 
@@ -17,6 +19,7 @@ type InterventoriaCode = 1 | 2 | 3 | 4 | 5 | null;
 export class ApprovalsPage {
   readonly data = inject(DataService);
   private readonly route = inject(ActivatedRoute);
+  private readonly ui = inject(UiFeedbackService);
 
   readonly logoName = signal('LOGO DEL CLIENTE');
   readonly fileError = signal('');
@@ -25,6 +28,13 @@ export class ApprovalsPage {
   readonly interventoriaCode = signal<InterventoriaCode>(null);
   readonly interventoriaComments = signal('');
   readonly reviewedBy = signal('Ing. Andrés Torres');
+  readonly notesDraft = signal('');
+  readonly selectedEquipmentIds = signal<string[]>([]);
+  readonly focusedEquipmentId = signal<string | null>(null);
+  readonly detailMode = signal<'view' | 'edit' | 'create'>('view');
+  readonly createProjectId = signal('');
+  readonly actionError = signal('');
+  readonly busy = signal(false);
   readonly today = new Date();
 
   constructor() {
@@ -44,10 +54,16 @@ export class ApprovalsPage {
     return this.data.getApproval(id) ?? null;
   });
 
+  readonly sheetOpen = computed(() => this.detailMode() === 'create' || Boolean(this.activeRequest()));
+
+  readonly editorProjectId = computed(
+    () => (this.detailMode() === 'create' ? this.createProjectId() : this.activeRequest()?.projectId) ?? '',
+  );
+
   readonly project = computed(() => {
-    const req = this.activeRequest();
-    if (!req) return undefined;
-    return this.data.getProject(req.projectId);
+    const id = this.editorProjectId() || this.activeRequest()?.projectId;
+    if (!id) return undefined;
+    return this.data.getProject(id);
   });
 
   readonly clientLogo = computed((): DocumentItem | undefined => {
@@ -56,16 +72,30 @@ export class ApprovalsPage {
     return this.data.getDocumentsByProject(projectId, 'Logo cliente')[0];
   });
 
-  readonly equipment = computed((): Equipment | null => this.requestEquipment()[0] ?? null);
+  readonly equipment = computed((): Equipment | null => this.focusedEquipment());
 
   readonly requestEquipment = computed((): Equipment[] => {
-    const req = this.activeRequest();
-    if (!req) return [];
-    const ids = req.equipmentIds?.length ? req.equipmentIds : req.equipmentId ? [req.equipmentId] : [];
+    const ids = this.selectedEquipmentIds();
     return ids
       .map((id) => this.data.getEquipmentById(id))
       .filter((item): item is Equipment => Boolean(item));
   });
+
+  readonly focusedEquipment = computed((): Equipment | null => {
+    const id = this.focusedEquipmentId();
+    const items = this.requestEquipment();
+    return items.find((item) => item.id === id) ?? items[0] ?? null;
+  });
+
+  readonly projectEquipment = computed((): Equipment[] => {
+    const projectId = this.editorProjectId();
+    if (!projectId) return [];
+    return this.data.getEquipmentByProject(projectId);
+  });
+
+  readonly canPickEquipment = computed(
+    () => this.detailMode() === 'create' || this.detailMode() === 'edit',
+  );
 
   readonly equipmentLabel = computed(() => {
     const names = this.requestEquipment().map((item) => item.name);
@@ -163,29 +193,152 @@ export class ApprovalsPage {
 
   async generateNew(): Promise<void> {
     this.generateError.set('');
-    const created = await this.data.addApprovalFromSelection();
-    if (!created) {
-      this.generateError.set(
-        'Elige primero los equipos en el comparador o la matriz (hasta 3). La solicitud se arma con esos equipos para aprobar el proyecto.',
-      );
-      return;
-    }
-    this.open(created);
+    this.startCreate();
+  }
+
+  startCreate(): void {
+    const picked = this.data.getSelectedEquipment().slice(0, 3);
+    const projectId = picked[0]?.projectId ?? this.data.projects()[0]?.id ?? '';
+    this.detailMode.set('create');
+    this.viewingId.set(null);
+    this.createProjectId.set(projectId);
+    this.selectedEquipmentIds.set(picked.map((item) => item.id));
+    this.focusedEquipmentId.set(picked[0]?.id ?? null);
+    this.notesDraft.set('');
+    this.actionError.set('');
+    this.interventoriaCode.set(null);
+    this.interventoriaComments.set('');
   }
 
   view(request: ApprovalRequest): void {
-    this.open(request);
+    this.open(request, 'view');
   }
 
-  open(request: ApprovalRequest): void {
+  edit(request: ApprovalRequest): void {
+    this.open(request, 'edit');
+  }
+
+  open(request: ApprovalRequest, mode: 'view' | 'edit' = 'view'): void {
+    this.detailMode.set(mode);
     this.viewingId.set(request.id);
     this.interventoriaCode.set(request.status === 'Aprobada' ? 1 : null);
     this.interventoriaComments.set('');
     this.reviewedBy.set(request.requester);
+    this.notesDraft.set(request.notes ?? '');
+    const ids = request.equipmentIds?.length
+      ? [...request.equipmentIds]
+      : request.equipmentId
+        ? [request.equipmentId]
+        : [];
+    this.selectedEquipmentIds.set(ids);
+    this.focusedEquipmentId.set(ids[0] ?? null);
+    this.actionError.set('');
   }
 
   closeDetail(): void {
     this.viewingId.set(null);
+    this.detailMode.set('view');
+    this.createProjectId.set('');
+  }
+
+  onCreateProjectChange(projectId: string): void {
+    this.createProjectId.set(projectId);
+    this.selectedEquipmentIds.set([]);
+    this.focusedEquipmentId.set(null);
+  }
+
+  onEquipmentMenuChange(id: string): void {
+    if (!id) return;
+    if (!this.canPickEquipment()) {
+      this.focusedEquipmentId.set(id);
+      return;
+    }
+    this.selectedEquipmentIds.update((ids) => {
+      if (ids.includes(id)) return ids;
+      if (ids.length >= 3) {
+        this.ui.toast('Máximo 3 equipos por solicitud.', 'warning');
+        return ids;
+      }
+      return [...ids, id];
+    });
+    if (this.selectedEquipmentIds().includes(id)) this.focusedEquipmentId.set(id);
+  }
+
+  removeSelectedEquipment(id: string): void {
+    const remaining = this.selectedEquipmentIds().filter((item) => item !== id);
+    this.selectedEquipmentIds.set(remaining);
+    if (this.focusedEquipmentId() === id) this.focusedEquipmentId.set(remaining[0] ?? null);
+  }
+
+  async saveChanges(): Promise<void> {
+    this.actionError.set('');
+    const equipmentIds = this.selectedEquipmentIds();
+    if (!equipmentIds.length) {
+      this.ui.toast('La solicitud debe tener al menos un equipo.', 'warning');
+      this.actionError.set('La solicitud debe tener al menos un equipo.');
+      return;
+    }
+
+    this.busy.set(true);
+    try {
+      if (this.detailMode() === 'create') {
+        const projectId = this.createProjectId();
+        if (!projectId) {
+          this.ui.toast('Elige un proyecto.', 'warning');
+          return;
+        }
+        this.data.clearCompareSelection();
+        for (const id of equipmentIds) this.data.toggleCompareEquipment(id);
+        const created = await this.data.addApprovalFromSelection(this.notesDraft().trim() || undefined, projectId);
+        if (!created) {
+          this.ui.error('No se pudo crear la solicitud.');
+          return;
+        }
+        this.ui.success('Solicitud de aprobación creada.');
+        this.open(created, 'view');
+        return;
+      }
+
+      const req = this.activeRequest();
+      if (!req) return;
+      await this.data.updateApproval(req.id, {
+        notes: this.notesDraft().trim(),
+        equipmentIds: this.canPickEquipment() ? equipmentIds : undefined,
+      });
+      this.ui.success('Cambios de la solicitud guardados.');
+      this.detailMode.set('view');
+    } catch (error) {
+      const message = apiErrorMessage(error, 'No se pudo guardar la solicitud.');
+      this.actionError.set(message);
+      this.ui.error(message);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async remove(request: ApprovalRequest, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const ok = await this.ui.confirm({
+      title: 'Eliminar solicitud',
+      message: `Se eliminará la solicitud de ${this.equipmentNames(request)}. Los equipos en evaluación volverán a Registrado.`,
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      danger: true,
+    });
+    if (!ok) return;
+    this.actionError.set('');
+    this.busy.set(true);
+    try {
+      await this.data.removeApproval(request.id);
+      if (this.viewingId() === request.id) this.closeDetail();
+      this.ui.success('Solicitud eliminada.');
+    } catch (error) {
+      const message = apiErrorMessage(error, 'No se pudo eliminar la solicitud.');
+      this.actionError.set(message);
+      this.ui.error(message);
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   statusClass(status: ApprovalStatus): string {

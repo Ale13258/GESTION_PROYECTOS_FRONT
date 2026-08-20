@@ -133,6 +133,60 @@
   color: #b91c1c;
 }
 
+.status-pill.wait {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.invite-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.invite-banner strong {
+  color: #92400e;
+}
+
+.invite-banner p {
+  margin: 0.25rem 0 0.5rem;
+  color: #78350f;
+  font-size: 0.88rem;
+}
+
+.invite-banner code {
+  display: block;
+  word-break: break-all;
+  font-size: 0.75rem;
+  color: #0f2744;
+}
+
+.field select {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  background: #fff;
+  color: #0f2744;
+}
+
+.hint {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
 .muted {
   color: #94a3b8;
 }

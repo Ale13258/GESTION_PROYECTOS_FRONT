@@ -1,0 +1,40 @@
+<div class="toast-stack" aria-live="polite">
+  @for (item of ui.toasts(); track item.id) {
+    <article class="toast" [class]="'toast-' + item.tone">
+      <span class="material-symbols-outlined toast-icon">{{ icon(item.tone) }}</span>
+      <div class="toast-copy">
+        <strong>{{ item.title }}</strong>
+        <p>{{ item.message }}</p>
+      </div>
+      <button class="toast-close" type="button" (click)="ui.dismiss(item.id)" aria-label="Cerrar">
+        ×
+      </button>
+    </article>
+  }
+</div>
+
+@if (ui.confirmDialog(); as dialog) {
+  <div class="confirm-backdrop" (click)="ui.answer(false)">
+    <div class="confirm-card" role="dialog" aria-modal="true" [attr.aria-labelledby]="'confirm-title'" (click)="$event.stopPropagation()">
+      <div class="confirm-icon" [class.danger]="dialog.danger">
+        <span class="material-symbols-outlined">{{ dialog.danger ? 'delete' : 'help' }}</span>
+      </div>
+      <h2 id="confirm-title">{{ dialog.title }}</h2>
+      <p>{{ dialog.message }}</p>
+      <div class="confirm-actions">
+        <button class="btn btn-secondary" type="button" (click)="ui.answer(false)">
+          {{ dialog.cancelLabel }}
+        </button>
+        <button
+          class="btn"
+          [class.btn-primary]="!dialog.danger"
+          [class.btn-danger-solid]="dialog.danger"
+          type="button"
+          (click)="ui.answer(true)"
+        >
+          {{ dialog.confirmLabel }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -395,6 +395,17 @@ a {
   border-color: #b7d0ea;
 }
 
+.btn-danger {
+  background: #fff;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.btn-danger:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--pm-gray-700);

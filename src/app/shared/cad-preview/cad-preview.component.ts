@@ -7,6 +7,27 @@ import {
   LibreDwg,
 } from '@mlightcad/libredwg-web';
 
+type CadEngine = Awaited<ReturnType<typeof LibreDwg.create>>;
+
+let enginePromise: Promise<CadEngine> | null = null;
+
+function loadCadEngine(): Promise<CadEngine> {
+  if (!enginePromise) {
+    enginePromise = (async () => {
+      try {
+        return await LibreDwg.create('/wasm');
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return await LibreDwg.create('/wasm');
+      }
+    })().catch((error) => {
+      enginePromise = null;
+      throw error;
+    });
+  }
+  return enginePromise;
+}
+
 @Component({
   selector: 'app-cad-preview',
   templateUrl: './cad-preview.component.html',
@@ -23,12 +44,15 @@ export class CadPreviewComponent {
   readonly downloadUrl = input('');
 
   readonly loading = signal(true);
+  readonly loadingLabel = signal('Preparando visor…');
   readonly error = signal('');
   readonly svgHtml = signal<SafeHtml | null>(null);
   readonly thumbnailUrl = signal<string | null>(null);
   readonly zoom = signal(1);
 
   constructor() {
+    void loadCadEngine();
+
     effect(() => {
       const url = this.fileUrl();
       const name = this.fileName();
@@ -64,6 +88,7 @@ export class CadPreviewComponent {
   private async openFile(url: string, name: string): Promise<void> {
     const token = ++this.loadToken;
     this.loading.set(true);
+    this.loadingLabel.set('Descargando el plano…');
     this.error.set('');
     this.svgHtml.set(null);
     this.thumbnailUrl.set(null);
@@ -79,14 +104,16 @@ export class CadPreviewComponent {
         throw new Error('Los archivos DXF se pueden descargar para abrirlos en AutoCAD.');
       }
 
-      let libredwg;
+      this.loadingLabel.set('Cargando el visor CAD…');
+      let libredwg: CadEngine;
       try {
-        libredwg = await LibreDwg.create('/wasm');
+        libredwg = await loadCadEngine();
       } catch {
-        throw new Error('No se pudo iniciar el visor CAD. Recarga la página.');
+        throw new Error('No se pudo iniciar el visor CAD. Cierra e inténtalo de nuevo.');
       }
       if (token !== this.loadToken) return;
 
+      this.loadingLabel.set('Leyendo el DWG…');
       const dwg = libredwg.dwg_read_data(buffer, Dwg_File_Type.DWG);
       if (!dwg) {
         throw new Error('No se pudo leer el plano DWG/BAK.');
@@ -97,8 +124,10 @@ export class CadPreviewComponent {
       if (thumbUrl) {
         this.thumbObjectUrl = thumbUrl;
         this.thumbnailUrl.set(thumbUrl);
+        this.loadingLabel.set('Mejorando el dibujo…');
       }
 
+      this.loadingLabel.set('Dibujando el plano…');
       const database = libredwg.convert(dwg);
       const svg = libredwg.dwg_to_svg(database);
       libredwg.dwg_free(dwg);

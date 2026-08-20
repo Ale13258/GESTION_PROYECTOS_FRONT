@@ -10,8 +10,10 @@
   </div>
 
   @if (loading()) {
-    <div class="cad-fallback">
-      <p>Abriendo plano CAD…</p>
+    <div class="cad-loading">
+      <span class="cad-spinner" aria-hidden="true"></span>
+      <p>{{ loadingLabel() }}</p>
+      <small>{{ fileName() }}</small>
     </div>
   } @else if (svgHtml()) {
     <div class="cad-stage" (wheel)="onWheel($event)">

@@ -190,6 +190,7 @@ export interface AppUser {
   role: UserRole;
   title: string;
   active: boolean;
+  mustSetPassword: boolean;
   createdAt: string;
   createdBy: string;
 }
@@ -198,6 +199,5 @@ export interface NewUserForm {
   name: string;
   email: string;
   title: string;
-  /** En prototipo se guarda solo como referencia; no hay auth real. */
-  password: string;
+  role: UserRole;
 }

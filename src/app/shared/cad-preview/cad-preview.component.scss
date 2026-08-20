@@ -81,6 +81,49 @@
   transform-origin: center center;
 }
 
+.cad-loading {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.85rem;
+  padding: 2rem;
+  text-align: center;
+  color: #334155;
+  background:
+    radial-gradient(circle at 50% 30%, #e8f1fa 0%, transparent 55%),
+    #f8fafc;
+}
+
+.cad-loading p {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.cad-loading small {
+  color: #64748b;
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cad-spinner {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 3px solid #dbeafe;
+  border-top-color: #1a4f86;
+  border-radius: 50%;
+  animation: cad-spin 0.8s linear infinite;
+}
+
+@keyframes cad-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .cad-fallback {
   flex: 1;
   display: grid;

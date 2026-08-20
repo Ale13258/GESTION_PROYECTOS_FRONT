@@ -22,8 +22,13 @@ export class ApiService {
     return `${this.baseUrl}${suffix}`;
   }
 
-  get<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
-    return firstValueFrom(this.http.get<T>(this.url(path), { params: this.toParams(params) }));
+  get<T>(
+    path: string,
+    params?: Record<string, string | number | boolean | undefined>,
+    skipAuth = false,
+  ): Promise<T> {
+    const context = skipAuth ? new HttpContext().set(SKIP_AUTH, true) : undefined;
+    return firstValueFrom(this.http.get<T>(this.url(path), { params: this.toParams(params), context }));
   }
 
   post<T>(path: string, body: unknown = {}, skipAuth = false): Promise<T> {

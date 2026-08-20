@@ -8,6 +8,7 @@ import { map } from 'rxjs';
 import { parseBudgetWorkbook, ParsedBudget } from '../../core/budget/parse-budget';
 import { projectDocumentStoragePath } from '../../core/firebase/storage-paths';
 import { DataService, FilePreview } from '../../core/services/data.service';
+import { UiFeedbackService } from '../../shared/ui-feedback/ui-feedback.service';
 import { CadPreviewComponent } from '../../shared/cad-preview/cad-preview.component';
 import { SpreadsheetPreviewComponent } from '../../shared/spreadsheet-preview/spreadsheet-preview.component';
 import {
@@ -39,6 +40,7 @@ export class ProjectDetailPage {
   private readonly router = inject(Router);
   readonly data = inject(DataService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly ui = inject(UiFeedbackService);
 
   readonly preview = signal<(FilePreview & { safeUrl: SafeResourceUrl }) | null>(null);
   readonly previewLoading = signal(false);
@@ -514,13 +516,23 @@ export class ProjectDetailPage {
 
   async removeProjectDocument(doc: DocumentItem, event?: Event): Promise<void> {
     event?.stopPropagation();
-    if (!confirm(`¿Quitar “${doc.name}” de esta carpeta?`)) return;
+    const ok = await this.ui.confirm({
+      title: 'Quitar documento',
+      message: `¿Quitar “${doc.name}” de esta carpeta? Esta acción no se puede deshacer.`,
+      confirmLabel: 'Quitar',
+      cancelLabel: 'Cancelar',
+      danger: true,
+    });
+    if (!ok) return;
     this.docError.set('');
     try {
       await this.data.removeDocument(doc.id);
       if (this.preview()?.name === doc.name) this.closePreview();
+      this.ui.success('Documento eliminado.');
     } catch (error) {
-      this.docError.set(error instanceof Error ? error.message : 'No se pudo quitar el archivo.');
+      const message = error instanceof Error ? error.message : 'No se pudo quitar el archivo.';
+      this.docError.set(message);
+      this.ui.error(message);
     }
   }
 
@@ -535,9 +547,17 @@ export class ProjectDetailPage {
     event?.stopPropagation();
     const equipment = this.selectedEquipment();
     if (!equipment) return;
-    if (!confirm(`¿Quitar “${file.name}”?`)) return;
+    const ok = await this.ui.confirm({
+      title: 'Quitar archivo',
+      message: `¿Quitar “${file.name}” de este equipo?`,
+      confirmLabel: 'Quitar',
+      cancelLabel: 'Cancelar',
+      danger: true,
+    });
+    if (!ok) return;
     const updated = await this.data.removeEquipmentFile(equipment.id, file.id);
     this.selectedEquipment.set(updated ?? this.data.getEquipmentById(equipment.id) ?? null);
+    this.ui.success('Archivo eliminado.');
   }
 
   closePreview(): void {

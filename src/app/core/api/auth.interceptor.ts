@@ -12,6 +12,8 @@ function isPublicAuthUrl(url: string): boolean {
   return (
     url.includes('/auth/login') ||
     url.includes('/auth/refresh') ||
+    url.includes('/auth/invite') ||
+    url.includes('/auth/set-password') ||
     url.includes('/health') ||
     url.includes('/files/stream')
   );

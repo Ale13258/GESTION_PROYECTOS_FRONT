@@ -258,6 +258,34 @@ export class DataService {
     this.approvalsSignal.update((list) => list.map((a) => (a.id === id ? mapped : a)));
   }
 
+  async updateApproval(
+    id: string,
+    payload: { notes?: string; equipmentIds?: string[] },
+  ): Promise<ApprovalRequest> {
+    const current = this.getApproval(id);
+    const updated = await this.api.patch<Parameters<typeof mapApproval>[0]>(`/approvals/${id}`, payload);
+    const mapped = mapApproval(updated, {
+      equipmentName: current?.equipmentName,
+      projectName: current?.projectName,
+    });
+    this.approvalsSignal.update((list) => list.map((item) => (item.id === id ? mapped : item)));
+    const ids = mapped.equipmentIds?.length ? mapped.equipmentIds : [mapped.equipmentId];
+    await Promise.all(ids.map((equipmentId) => this.refreshEquipment(equipmentId)));
+    return mapped;
+  }
+
+  async removeApproval(id: string): Promise<void> {
+    const current = this.getApproval(id);
+    const ids = current
+      ? current.equipmentIds?.length
+        ? current.equipmentIds
+        : [current.equipmentId]
+      : [];
+    await this.api.delete(`/approvals/${id}`);
+    this.approvalsSignal.update((list) => list.filter((item) => item.id !== id));
+    await Promise.all(ids.filter(Boolean).map((equipmentId) => this.refreshEquipment(equipmentId)));
+  }
+
   equipmentCountBySupplier(supplierName: string): number {
     return this.equipmentSignal().filter((e) => e.supplier === supplierName).length;
   }

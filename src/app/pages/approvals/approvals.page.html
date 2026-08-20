@@ -51,15 +51,11 @@
             </td>
             <td class="date">{{ item.date }}</td>
             <td>
-              <button class="view-link" type="button" (click)="view(item)">
-                <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
-                  <path
-                    fill="currentColor"
-                    d="M10 4.5C5.5 4.5 1.9 7.4 1 10c.9 2.6 4.5 5.5 9 5.5s8.1-2.9 9-5.5c-.9-2.6-4.5-5.5-9-5.5zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm0-5.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"
-                  />
-                </svg>
-                Ver
-              </button>
+              <div class="row-actions">
+                <button class="view-link" type="button" (click)="view(item)">Ver</button>
+                <button class="view-link" type="button" (click)="edit(item)">Editar</button>
+                <button class="view-link danger" type="button" (click)="remove(item, $event)">Borrar</button>
+              </div>
             </td>
           </tr>
         } @empty {
@@ -72,16 +68,25 @@
   </div>
 </section>
 
-@if (activeRequest(); as req) {
+@if (sheetOpen()) {
   <div class="modal-backdrop no-print" (click)="closeDetail()"></div>
 
   <div class="modal-shell" role="dialog" aria-modal="true" aria-labelledby="approval-modal-title">
     <header class="modal-head no-print">
-      <h2 id="approval-modal-title">Solicitud de Aprobación de Equipos</h2>
+      <h2 id="approval-modal-title">
+        @if (detailMode() === 'create') {
+          Nueva solicitud de aprobación
+        } @else if (detailMode() === 'edit') {
+          Editar solicitud de aprobación
+        } @else {
+          Solicitud de Aprobación de Equipos
+        }
+      </h2>
       <button class="icon-close" type="button" (click)="closeDetail()" aria-label="Cerrar">×</button>
     </header>
 
     <div class="modal-body printable" id="approval-doc">
+      @let req = activeRequest();
       <div class="doc-header">
         <label class="logo-box">
           @if (clientLogo()?.url) {
@@ -94,7 +99,7 @@
         <div class="doc-meta">
           <h3>SOLICITUD DE APROBACIÓN DE EQUIPOS</h3>
           <p>Código: {{ docCode() }}</p>
-          <p>Fecha: {{ displayDate(req.date) }}</p>
+          <p>Fecha: {{ displayDate(req?.date) }}</p>
         </div>
       </div>
 
@@ -103,7 +108,20 @@
         <div class="kv-grid">
           <div class="kv">
             <span class="k">Proyecto</span>
-            <span class="v">{{ project()?.name || req.projectName }}</span>
+            @if (detailMode() === 'create') {
+              <select
+                class="equip-select"
+                [ngModel]="createProjectId()"
+                (ngModelChange)="onCreateProjectChange($event)"
+              >
+                <option value="">Seleccionar proyecto…</option>
+                @for (item of data.projects(); track item.id) {
+                  <option [value]="item.id">{{ item.name }}</option>
+                }
+              </select>
+            } @else {
+              <span class="v">{{ project()?.name || req?.projectName }}</span>
+            }
           </div>
           <div class="kv">
             <span class="k">Contrato</span>
@@ -122,10 +140,66 @@
 
       <section class="doc-section">
         <h4>2. EQUIPOS ELEGIDOS PARA APROBACIÓN</h4>
-        @for (eq of requestEquipment(); track eq.id; let i = $index) {
-          <p class="muted" style="margin: 0 0 0.5rem">
-            Equipo {{ requestEquipment().length > 1 ? i + 1 + ' de ' + requestEquipment().length : '' }}
-          </p>
+
+        @if (canPickEquipment()) {
+          <label class="field-label" for="catalog-equipment">Equipo</label>
+          <select
+            id="catalog-equipment"
+            class="equip-select"
+            [ngModel]="focusedEquipmentId() ?? ''"
+            (ngModelChange)="onEquipmentMenuChange($event)"
+          >
+            <option value="">Seleccionar de la lista del proyecto…</option>
+            @for (eq of projectEquipment(); track eq.id) {
+              <option [value]="eq.id">
+                {{ selectedEquipmentIds().includes(eq.id) ? '✓ ' : '' }}{{ eq.name }} · {{ eq.status }}
+              </option>
+            }
+          </select>
+          @if (!editorProjectId()) {
+            <p class="muted">Elige un proyecto para ver sus equipos.</p>
+          } @else if (!projectEquipment().length) {
+            <p class="muted">Este proyecto no tiene equipos registrados.</p>
+          }
+          @if (requestEquipment().length) {
+            <div class="equip-chips">
+              @for (eq of requestEquipment(); track eq.id) {
+                <button
+                  class="equip-chip"
+                  type="button"
+                  [class.on]="focusedEquipmentId() === eq.id"
+                  (click)="focusedEquipmentId.set(eq.id)"
+                >
+                  {{ eq.name }}
+                  <span
+                    class="equip-chip-x"
+                    (click)="removeSelectedEquipment(eq.id); $event.stopPropagation()"
+                    aria-label="Quitar equipo"
+                  >×</span>
+                </button>
+              }
+            </div>
+          }
+          @if (selectedEquipmentIds().length >= 3) {
+            <p class="muted">Máximo 3 equipos. Quita uno para cambiar la selección.</p>
+          }
+        } @else if (requestEquipment().length > 1) {
+          <label class="field-label" for="focus-equipment">Equipo de esta solicitud</label>
+          <select
+            id="focus-equipment"
+            class="equip-select"
+            [ngModel]="focusedEquipmentId()"
+            (ngModelChange)="focusedEquipmentId.set($event)"
+          >
+            @for (eq of requestEquipment(); track eq.id) {
+              <option [value]="eq.id">{{ eq.name }}</option>
+            }
+          </select>
+        } @else if (!requestEquipment().length) {
+          <p class="muted">Esta solicitud no tiene equipos asociados.</p>
+        }
+
+        @if (focusedEquipment(); as eq) {
           <div class="kv-grid">
             <div class="kv">
               <span class="k">Equipo</span>
@@ -168,8 +242,6 @@
               <span class="v">{{ eq.supplier || '—' }} / {{ eq.manufacturer || '—' }}</span>
             </div>
           </div>
-        } @empty {
-          <p>{{ equipmentLabel() }}</p>
         }
       </section>
 
@@ -277,6 +349,15 @@
       <section class="doc-section">
         <h4>4. RECOMENDACIÓN TÉCNICA</h4>
         <p class="recommendation">{{ recommendation() }}</p>
+        <label class="field-label" for="approval-notes">Notas de la solicitud</label>
+        <textarea
+          id="approval-notes"
+          class="no-print"
+          rows="3"
+          [ngModel]="notesDraft()"
+          (ngModelChange)="notesDraft.set($event)"
+          placeholder="Notas internas o comentarios para interventoría…"
+        ></textarea>
       </section>
 
       <section class="doc-section response-section">
@@ -326,7 +407,20 @@
       @if (fileError()) {
         <p class="file-error">{{ fileError() }}</p>
       }
+      @if (actionError()) {
+        <p class="file-error">{{ actionError() }}</p>
+      }
+      @if (req) {
+        <button class="btn btn-danger" type="button" [disabled]="busy()" (click)="remove(req)">
+          Eliminar
+        </button>
+      }
       <button class="btn btn-secondary" type="button" (click)="closeDetail()">Cerrar</button>
+      @if (detailMode() !== 'view') {
+        <button class="btn btn-secondary" type="button" [disabled]="busy()" (click)="saveChanges()">
+          {{ detailMode() === 'create' ? 'Crear solicitud' : 'Guardar cambios' }}
+        </button>
+      }
       <button class="btn btn-secondary" type="button" (click)="export('word')">Exportar Word</button>
       <button class="btn btn-primary" type="button" (click)="export('pdf')">Exportar PDF</button>
     </footer>
