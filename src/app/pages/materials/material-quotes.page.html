@@ -1,0 +1,154 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Cotizaciones</p>
+    <h1>Cotizaciones de materiales</h1>
+    <p>Ofertas de proveedores por material de construcción.</p>
+  </div>
+</section>
+
+<div class="kpi-row">
+  <article class="kpi-card">
+    <span>Materiales cotizados</span>
+    <strong>{{ stats().materialsCount }}</strong>
+  </article>
+  <article class="kpi-card">
+    <span>Ofertas recibidas</span>
+    <strong>{{ stats().received }}</strong>
+  </article>
+  <article class="kpi-card">
+    <span>Valor aprobado</span>
+    <strong>{{ formatMoney(stats().approvedValue) }}</strong>
+  </article>
+  <article class="kpi-card">
+    <span>Pendientes</span>
+    <strong>{{ stats().pending }}</strong>
+  </article>
+</div>
+
+<div class="actions-row">
+  <button class="btn btn-primary" type="button" (click)="openModal()">+ Nueva cotización</button>
+</div>
+
+<div class="groups">
+  @for (group of groups(); track group.materialId + group.materialName) {
+    <section class="quote-group">
+      <header class="group-head">
+        <div>
+          <h2>{{ group.materialName }}</h2>
+          <span>{{ group.materialCode || 'Sin código' }} · {{ group.offers.length }} ofertas</span>
+        </div>
+        <span class="range">
+          {{ formatMoney(group.minAmount) }} – {{ formatMoney(group.maxAmount) }}
+        </span>
+      </header>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Proveedor</th>
+              <th>Cantidad</th>
+              <th>P. unitario</th>
+              <th>Total</th>
+              <th>Entrega</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (offer of group.offers; track offer.id) {
+              <tr [class.final]="offer.isFinal || offer.status === 'Aprobada'">
+                <td>{{ offer.supplier }}</td>
+                <td>{{ offer.quantity }} {{ offer.unit }}</td>
+                <td>{{ formatMoney(offer.unitPrice) }}</td>
+                <td>{{ formatMoney(offer.amount) }}</td>
+                <td>{{ offer.deliveryDays }} días</td>
+                <td>{{ offer.status }}</td>
+                <td>{{ offer.date }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  } @empty {
+    <article class="empty-panel">
+      @if (materials.loading()) {
+        Cargando cotizaciones…
+      } @else {
+        No hay cotizaciones de materiales. Crea la primera o verifica GET /material-quotes en la API.
+      }
+    </article>
+  }
+</div>
+
+@if (showModal()) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>Nueva cotización de material</h2>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Material</label>
+          <select
+            [ngModel]="form.materialId"
+            (ngModelChange)="onMaterialChange($event)"
+          >
+            <option value="">Selecciona…</option>
+            @for (item of materials.materials(); track item.id) {
+              <option [value]="item.id">{{ item.code ? item.code + ' · ' : '' }}{{ item.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="field full">
+          <label>Proveedor</label>
+          <select
+            [ngModel]="form.supplierId"
+            (ngModelChange)="onSupplierChange($event)"
+          >
+            <option value="">Selecciona…</option>
+            @for (supplier of materials.suppliers(); track supplier.id) {
+              <option [value]="supplier.id">{{ supplier.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label>Cantidad</label>
+          <input type="number" min="0" step="0.01" [(ngModel)]="form.quantity" />
+        </div>
+        <div class="field">
+          <label>Unidad</label>
+          <input [(ngModel)]="form.unit" />
+        </div>
+        <div class="field">
+          <label>Precio unitario</label>
+          <input type="number" min="0" step="1" [(ngModel)]="form.unitPrice" />
+        </div>
+        <div class="field">
+          <label>Entrega (días)</label>
+          <input type="number" min="0" [(ngModel)]="form.deliveryDays" />
+        </div>
+        <div class="field">
+          <label>Estado</label>
+          <select [(ngModel)]="form.status">
+            <option value="Pendiente">Pendiente</option>
+            <option value="En revisión">En revisión</option>
+            <option value="Aprobada">Aprobada</option>
+            <option value="Rechazada">Rechazada</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Fecha</label>
+          <input type="date" [(ngModel)]="form.date" />
+        </div>
+        <div class="field full">
+          <label>Notas</label>
+          <textarea rows="2" [(ngModel)]="form.notes" placeholder="Opcional"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" (click)="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" type="button" (click)="createQuote()">Guardar</button>
+      </div>
+    </div>
+  </div>
+}

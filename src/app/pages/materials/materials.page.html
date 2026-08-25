@@ -1,0 +1,194 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Inventario</p>
+    <h1>Inventario de materiales</h1>
+    <p>
+      Catálogo y stock de materiales de construcción (cementos, agregados, tubería, etc.). No es
+      inventario de equipos.
+    </p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-secondary" type="button" (click)="openCategoryModal()">+ Categoría</button>
+    <button class="btn btn-primary" type="button" (click)="openMaterialModal()">+ Material</button>
+  </div>
+</section>
+
+<div class="stats">
+  <article>
+    <span>Materiales</span>
+    <strong>{{ stats().materials }}</strong>
+  </article>
+  <article>
+    <span>Categorías</span>
+    <strong>{{ stats().categories }}</strong>
+  </article>
+  <article>
+    <span>Unidades en stock</span>
+    <strong>{{ formatQty(stats().totalStock) }}</strong>
+  </article>
+  <article [class.warn]="stats().lowStock > 0">
+    <span>Sin stock</span>
+    <strong>{{ stats().lowStock }}</strong>
+  </article>
+</div>
+
+<article class="panel toolbar">
+  <input
+    type="search"
+    [ngModel]="search()"
+    (ngModelChange)="search.set($event)"
+    placeholder="Buscar por nombre, código o categoría…"
+  />
+  <select [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)">
+    <option value="">Todas las categorías</option>
+    @for (cat of materials.categories(); track cat.id) {
+      <option [value]="cat.id">{{ cat.name }}</option>
+    }
+  </select>
+</article>
+
+<article class="panel">
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Material</th>
+          <th>Categoría</th>
+          <th>Unidad</th>
+          <th>Stock</th>
+          <th>Precio</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of filtered(); track item.id) {
+          <tr>
+            <td>{{ item.code || '—' }}</td>
+            <td>
+              <strong>{{ item.name }}</strong>
+              @if (item.description) {
+                <span class="muted">{{ item.description }}</span>
+              }
+            </td>
+            <td>{{ item.category }}</td>
+            <td>{{ item.unit }}</td>
+            <td>
+              <div class="stock-cell">
+                <button type="button" class="stock-btn" (click)="adjustStock(item.id, -1)">−</button>
+                <span [class.low]="item.stockQty <= 0">{{ formatQty(item.stockQty) }}</span>
+                <button type="button" class="stock-btn" (click)="adjustStock(item.id, 1)">+</button>
+              </div>
+            </td>
+            <td>{{ formatMoney(item.price) }}</td>
+            <td>
+              <span class="badge" [class.off]="!item.active">
+                {{ item.active ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="empty">
+              @if (materials.loading()) {
+                Cargando inventario…
+              } @else {
+                No hay materiales. Crea una categoría y agrega el primero.
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</article>
+
+@if (materials.categories().length) {
+  <article class="panel categories-panel">
+    <h2>Categorías</h2>
+    <div class="chips">
+      @for (cat of materials.categories(); track cat.id) {
+        <button
+          type="button"
+          class="chip"
+          [class.active]="categoryFilter() === cat.id"
+          (click)="categoryFilter.set(categoryFilter() === cat.id ? '' : cat.id)"
+        >
+          {{ cat.name }}
+        </button>
+      }
+    </div>
+  </article>
+}
+
+@if (showMaterialModal()) {
+  <div class="modal-backdrop" (click)="closeMaterialModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>Nuevo material</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label>Código</label>
+          <input [(ngModel)]="form.code" placeholder="Ej. CEM-001" />
+        </div>
+        <div class="field">
+          <label>Unidad</label>
+          <input [(ngModel)]="form.unit" placeholder="und / m³ / kg" />
+        </div>
+        <div class="field full">
+          <label>Nombre</label>
+          <input [(ngModel)]="form.name" placeholder="Ej. Cemento Portland tipo I" />
+        </div>
+        <div class="field full">
+          <label>Categoría</label>
+          <div class="category-row">
+            <select [ngModel]="form.categoryId" (ngModelChange)="onCategorySelect($event)">
+              <option value="">Selecciona…</option>
+              @for (cat of materials.categories(); track cat.id) {
+                <option [value]="cat.id">{{ cat.name }}</option>
+              }
+            </select>
+            <button class="btn btn-secondary" type="button" (click)="openCategoryModal()">Nueva</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Stock inicial</label>
+          <input type="number" min="0" step="1" [(ngModel)]="form.stockQty" />
+        </div>
+        <div class="field">
+          <label>Precio</label>
+          <input type="number" min="0" step="1" [(ngModel)]="form.price" placeholder="0" />
+        </div>
+        <div class="field full">
+          <label>Descripción</label>
+          <textarea [(ngModel)]="form.description" rows="3" placeholder="Opcional"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" (click)="closeMaterialModal()">Cancelar</button>
+        <button class="btn btn-primary" type="button" (click)="createMaterial()">Guardar</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showCategoryModal()) {
+  <div class="modal-backdrop" (click)="closeCategoryModal()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <h2>Nueva categoría</h2>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Nombre</label>
+          <input [(ngModel)]="categoryForm.name" placeholder="Ej. Cementos, Agregados, Tubería…" />
+        </div>
+        <div class="field full">
+          <label>Descripción</label>
+          <textarea [(ngModel)]="categoryForm.description" rows="2" placeholder="Opcional"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" (click)="closeCategoryModal()">Cancelar</button>
+        <button class="btn btn-primary" type="button" (click)="createCategory()">Crear</button>
+      </div>
+    </div>
+  </div>
+}

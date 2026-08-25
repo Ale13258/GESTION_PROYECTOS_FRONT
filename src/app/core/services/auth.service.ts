@@ -2,13 +2,17 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   AppPermission,
   AppUser,
+  DEFAULT_TENANT_FEATURES,
   NewUserForm,
+  SUPER_ADMIN_EMAIL,
+  TenantFeature,
+  TenantInfo,
   UserRole,
 } from '../models/promanage.models';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ApiService } from '../api/api.service';
 import { apiErrorCode, apiErrorMessage } from '../api/http-error';
-import { AuthUserDto, LoginResponse, mapUser } from '../api/mappers';
+import { AuthUserDto, LoginResponse, mapTenant, mapUser } from '../api/mappers';
 import { TokenStore } from '../api/token.store';
 
 const ALL_PERMISSIONS: AppPermission[] = [
@@ -21,6 +25,7 @@ const ALL_PERMISSIONS: AppPermission[] = [
   'manageApprovals',
   'viewReports',
   'manageSettings',
+  'manageMaterials',
 ];
 
 const COLLABORATOR_PERMISSIONS: AppPermission[] = ALL_PERMISSIONS.filter(
@@ -35,10 +40,12 @@ export class AuthService {
   private readonly usersSignal = signal<AppUser[]>([]);
   private readonly currentUserSignal = signal<AppUser | null>(null);
   private readonly permissionsSignal = signal<AppPermission[]>([]);
+  private readonly tenantSignal = signal<TenantInfo | null>(null);
   private sessionPromise: Promise<boolean> | null = null;
 
   readonly users = this.usersSignal.asReadonly();
   readonly currentUser = this.currentUserSignal.asReadonly();
+  readonly tenant = this.tenantSignal.asReadonly();
 
   readonly isAuthenticated = computed(() => {
     const user = this.currentUserSignal();
@@ -46,6 +53,42 @@ export class AuthService {
   });
 
   readonly canManageUsers = computed(() => this.hasPermission('manageUsers'));
+
+  /** Solo Alejandra (super admin) puede crear/gestionar empresas (tenants). */
+  readonly isSuperAdmin = computed(() => {
+    const email = this.currentUserSignal()?.email?.trim().toLowerCase() || '';
+    return email === SUPER_ADMIN_EMAIL;
+  });
+
+  readonly hasPromanage = computed(() => this.hasFeature('promanage.full'));
+  readonly hasMaterialsQuotes = computed(() => this.hasFeature('materials.quotes'));
+  /** Acceso a la app operativa (proyectos, docs, etc.). */
+  readonly hasOpsAccess = computed(
+    () => this.hasFeature('promanage.full') || this.hasFeature('materials.quotes'),
+  );
+  /** Tenant solo de materiales (no ProManage equipos). */
+  readonly isMaterialsTenant = computed(
+    () => this.hasFeature('materials.quotes') && !this.hasFeature('promanage.full'),
+  );
+
+  readonly homeRoute = computed(() => {
+    if (this.hasOpsAccess()) return '/dashboard';
+    return '/configuracion';
+  });
+
+  readonly brandName = computed(() => {
+    const t = this.tenantSignal();
+    return t?.branding?.name || t?.name || 'ProManage';
+  });
+
+  readonly brandTagline = computed(() => {
+    const t = this.tenantSignal();
+    return t?.branding?.tagline || (this.hasFeature('promanage.full') ? 'ENGINEERING' : 'MATERIALES');
+  });
+
+  readonly brandLogoUrl = computed(() => {
+    return this.tenantSignal()?.branding?.logoUrl || 'favicon.svg';
+  });
 
   roleLabel(role: UserRole): string {
     return role === 'admin' ? 'Administrador' : 'Colaborador';
@@ -62,6 +105,7 @@ export class AuthService {
       manageApprovals: 'Solicitudes de aprobación',
       viewReports: 'Reportes',
       manageSettings: 'Configuración',
+      manageMaterials: 'Materiales y cotizaciones',
     };
     return map[permission];
   }
@@ -76,6 +120,11 @@ export class AuthService {
     const fromApi = this.permissionsSignal();
     if (fromApi.length) return fromApi.includes(permission);
     return this.permissionsFor(user.role).includes(permission);
+  }
+
+  hasFeature(feature: TenantFeature): boolean {
+    const features = this.tenantSignal()?.features ?? DEFAULT_TENANT_FEATURES;
+    return features.includes(feature);
   }
 
   initials(name: string): string {
@@ -133,6 +182,7 @@ export class AuthService {
     this.tokens.clear();
     this.currentUserSignal.set(null);
     this.permissionsSignal.set([]);
+    this.tenantSignal.set(null);
     this.usersSignal.set([]);
   }
 
@@ -148,9 +198,13 @@ export class AuthService {
       email: form.email.trim().toLowerCase(),
       title: form.title.trim() || undefined,
       role: form.role,
+      ...(form.tenantId ? { tenantId: form.tenantId } : {}),
     });
     const user = mapUser(created);
-    this.usersSignal.update((list) => [user, ...list]);
+    // Solo refresca la lista local si el usuario pertenece al tenant actual.
+    if (!form.tenantId || form.tenantId === this.tenantSignal()?.id) {
+      this.usersSignal.update((list) => [user, ...list]);
+    }
     return { ...user, inviteEmailSent: created.inviteEmailSent, inviteUrl: created.inviteUrl };
   }
 
@@ -163,7 +217,7 @@ export class AuthService {
   }
 
   async previewInvite(token: string): Promise<{ name: string; email: string; role: UserRole }> {
-    return this.api.get('/auth/invite', { token }, true);
+    return this.api.get('/auth/invite', { token: token.trim() }, true);
   }
 
   async setPasswordFromInvite(token: string, password: string): Promise<{ ok: true } | { ok: false; message: string }> {
@@ -192,24 +246,35 @@ export class AuthService {
 
   private async restoreSession(): Promise<boolean> {
     try {
-      const me = await this.api.get<AuthUserDto>('/auth/me');
-      this.setUser(me);
+      const me = await this.api.get<AuthUserDto & { tenant?: LoginResponse['tenant'] }>('/auth/me');
+      this.setUser(me, me.tenant);
       await this.refreshUsers().catch(() => undefined);
       return true;
     } catch {
       this.tokens.clear();
       this.currentUserSignal.set(null);
+      this.tenantSignal.set(null);
       return false;
     }
   }
 
   private applySession(session: LoginResponse): void {
     this.tokens.set(session.accessToken, session.refreshToken);
-    this.setUser(session.user);
+    this.setUser(session.user, session.tenant || session.user.tenant);
   }
 
-  private setUser(dto: AuthUserDto): void {
+  private setUser(dto: AuthUserDto, tenantDto?: LoginResponse['tenant']): void {
     this.currentUserSignal.set(mapUser(dto));
-    this.permissionsSignal.set(dto.permissions?.length ? dto.permissions : this.permissionsFor(dto.role));
+    this.tenantSignal.set(mapTenant(tenantDto || dto.tenant, dto));
+    const rolePerms = this.permissionsFor(dto.role);
+    const fromApi = dto.permissions?.length ? dto.permissions : rolePerms;
+    // Tenant de materiales: mismos permisos operativos + manageMaterials.
+    if (!this.hasFeature('promanage.full') && this.hasFeature('materials.quotes')) {
+      const next = new Set(fromApi.length ? fromApi : rolePerms);
+      next.add('manageMaterials');
+      this.permissionsSignal.set([...next]);
+      return;
+    }
+    this.permissionsSignal.set(fromApi);
   }
 }

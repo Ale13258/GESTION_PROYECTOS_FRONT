@@ -1,0 +1,178 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">SaaS</p>
+    <h1>Empresas (tenants)</h1>
+    <p>
+      Crea empresas clientes con sus módulos e invita a su administrador. El enlace de invitación
+      también se muestra aquí por si el correo no llega.
+    </p>
+  </div>
+  @if (auth.isSuperAdmin()) {
+    <button class="btn btn-primary" type="button" (click)="openModal()">+ Nueva empresa</button>
+  }
+</section>
+
+@if (!auth.isSuperAdmin()) {
+  <article class="panel denied">
+    <h2>Acceso restringido</h2>
+    <p>Solo el super admin puede crear y gestionar empresas (tenants).</p>
+  </article>
+} @else {
+  @if (lastInvite(); as invite) {
+    <article class="panel invite-banner">
+      <div>
+        <strong>Enlace para crear contraseña</strong>
+        <p>
+          @if (invite.emailSent) {
+            Se envió el correo a <em>{{ invite.email }}</em>. Si no llega (revisa spam), usa este
+            enlace para crear la contraseña e ingresar al tenant.
+          } @else {
+            El correo SMTP no está configurado (o falló). Envía este enlace a
+            <em>{{ invite.email }}</em> para que cree su contraseña e ingrese al tenant.
+          }
+        </p>
+        <code>{{ invite.url }}</code>
+      </div>
+      <button class="btn btn-secondary" type="button" (click)="copyInvite()">Copiar enlace</button>
+    </article>
+  }
+
+  <article class="panel">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th>Slug</th>
+            <th>Módulos</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (tenant of tenants.tenants(); track tenant.id) {
+            <tr [class.inactive]="tenant.active === false">
+              <td>
+                <strong>{{ tenant.name }}</strong>
+                @if (tenant.branding?.tagline) {
+                  <span class="muted">{{ tenant.branding?.tagline }}</span>
+                }
+              </td>
+              <td><code>{{ tenant.slug }}</code></td>
+              <td>
+                <div class="chips">
+                  @for (feature of tenant.features; track feature) {
+                    <span class="chip">{{ tenants.featureLabel(feature) }}</span>
+                  }
+                </div>
+              </td>
+              <td>
+                <span class="status" [class.off]="tenant.active === false">
+                  {{ tenant.active === false ? 'Inactiva' : 'Activa' }}
+                </span>
+              </td>
+              <td>
+                @if (!tenants.isDefault(tenant)) {
+                  <div class="row-actions">
+                    <button
+                      class="btn btn-secondary btn-sm"
+                      type="button"
+                      (click)="toggleActive(tenant)"
+                    >
+                      {{ tenant.active === false ? 'Activar' : 'Desactivar' }}
+                    </button>
+                    <button
+                      class="btn btn-danger btn-sm"
+                      type="button"
+                      (click)="deleteTenant(tenant)"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty">
+                @if (tenants.loading()) {
+                  Cargando…
+                } @else {
+                  Aún no hay empresas listadas. Crea la primera con “+ Nueva empresa”.
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+}
+
+@if (showModal()) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>Nueva empresa</h2>
+      <p class="intro">
+        Define el tenant y su admin. Si no hay SMTP, verás el enlace para crear la contraseña.
+      </p>
+
+      <div class="form-grid">
+        <div class="field full">
+          <label>Nombre de la empresa</label>
+          <input
+            [ngModel]="form.name"
+            (ngModelChange)="onNameChange($event)"
+            placeholder="Ej. Constructora Andes"
+          />
+        </div>
+        <div class="field">
+          <label>Slug (URL / código)</label>
+          <input [(ngModel)]="form.slug" placeholder="constructora-andes" />
+        </div>
+        <div class="field">
+          <label>Nombre visible (branding)</label>
+          <input [(ngModel)]="form.brandingName" placeholder="Constructora Andes" />
+        </div>
+        <div class="field full">
+          <label>Tagline</label>
+          <input [(ngModel)]="form.brandingTagline" placeholder="MATERIALES" />
+        </div>
+
+        <div class="field full">
+          <label>Módulos habilitados</label>
+          <div class="checks">
+            <label class="check">
+              <input type="checkbox" [(ngModel)]="featureMaterials" />
+              Materiales de construcción (inventario/cotizaciones de materiales)
+            </label>
+            <label class="check">
+              <input type="checkbox" [(ngModel)]="featurePromanage" />
+              Equipos de trabajo / ingeniería (inventario técnico)
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Admin (nombre)</label>
+          <input [(ngModel)]="form.adminName" placeholder="Opcional" />
+        </div>
+        <div class="field">
+          <label>Admin (correo)</label>
+          <input type="email" [(ngModel)]="form.adminEmail" placeholder="admin@empresa.com" />
+        </div>
+      </div>
+
+      @if (error()) {
+        <p class="error">{{ error() }}</p>
+      }
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" (click)="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" type="button" [disabled]="busy()" (click)="createTenant()">
+          {{ busy() ? 'Creando…' : 'Crear empresa' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

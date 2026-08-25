@@ -47,7 +47,7 @@ export class LoginPage {
         this.ui.error(message);
         return;
       }
-      void this.router.navigateByUrl('/dashboard');
+      void this.router.navigateByUrl(this.auth.homeRoute());
     } finally {
       this.loading.set(false);
     }

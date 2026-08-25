@@ -261,6 +261,17 @@
   gap: 0 0.85rem;
 }
 
+.category-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.category-row select {
+  width: 100%;
+}
+
 .form-grid .full {
   grid-column: 1 / -1;
 }

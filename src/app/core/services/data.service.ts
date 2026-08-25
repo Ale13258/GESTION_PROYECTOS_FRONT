@@ -15,6 +15,7 @@ import {
   DashboardStats,
   DocumentItem,
   Equipment,
+  EquipmentCategory,
   NewEquipmentForm,
   NewQuotationForm,
   NewSupplierForm,
@@ -22,6 +23,7 @@ import {
   Quotation,
   Supplier,
 } from '../models/promanage.models';
+import { AuthService } from './auth.service';
 
 export interface FilePreview {
   name: string;
@@ -37,6 +39,11 @@ const PLACEHOLDER_IMAGE =
 export class DataService {
   private readonly api = inject(ApiService);
   private readonly firebaseStorage = inject(FirebaseStorageService);
+  private readonly auth = inject(AuthService);
+
+  private tenantId(): string | null {
+    return this.auth.tenant()?.id ?? this.auth.currentUser()?.tenantId ?? null;
+  }
 
   private readonly projectsSignal = signal<Project[]>([]);
   private readonly equipmentSignal = signal<Equipment[]>([]);
@@ -53,6 +60,7 @@ export class DataService {
     rejectedEquipment: 0,
   });
   private readonly plantProcessesSignal = signal<string[]>([]);
+  private readonly equipmentCategoriesSignal = signal<EquipmentCategory[]>([]);
   private readonly notificationsUnread = signal(0);
 
   readonly searchQuery = signal('');
@@ -67,6 +75,7 @@ export class DataService {
   readonly approvals = this.approvalsSignal.asReadonly();
   readonly stats = this.statsSignal.asReadonly();
   readonly plantProcesses = this.plantProcessesSignal.asReadonly();
+  readonly equipmentCategories = this.equipmentCategoriesSignal.asReadonly();
   readonly unreadNotifications = this.notificationsUnread.asReadonly();
 
   private readonly previewCache = new Map<string, FilePreview>();
@@ -89,6 +98,7 @@ export class DataService {
     this.selectedEquipmentIds.set([]);
     this.searchHits.set(null);
     this.notificationsUnread.set(0);
+    this.equipmentCategoriesSignal.set([]);
     this.previewCache.clear();
     this.migratedProjectIds.clear();
   }
@@ -96,7 +106,7 @@ export class DataService {
   async reload(): Promise<void> {
     this.loading.set(true);
     try {
-      const [projects, equipment, suppliers, quotations, approvals, stats, processes, notifications] =
+      const [projects, equipment, suppliers, quotations, approvals, stats, processes, categories, notifications] =
         await Promise.all([
           this.api.listAll<Parameters<typeof mapProject>[0]>('/projects'),
           this.api.listAll<Record<string, unknown>>('/equipment'),
@@ -105,6 +115,7 @@ export class DataService {
           this.api.listAll<Parameters<typeof mapApproval>[0]>('/approvals'),
           this.api.get<DashboardStats>('/dashboard/stats'),
           this.api.get<{ code: number; name: string }[]>('/catalogs/plant-processes'),
+          this.api.get<EquipmentCategory[]>('/equipment/categories').catch(() => []),
           this.api.get<{ unread?: number }>('/notifications').catch(() => ({ unread: 0 })),
         ]);
 
@@ -129,6 +140,7 @@ export class DataService {
       this.plantProcessesSignal.set(
         processes.map((p) => `${p.code}. ${p.name}`),
       );
+      this.equipmentCategoriesSignal.set(Array.isArray(categories) ? categories : []);
       this.notificationsUnread.set(notifications.unread ?? 0);
 
       const docs = await Promise.all(
@@ -290,6 +302,19 @@ export class DataService {
     return this.equipmentSignal().filter((e) => e.supplier === supplierName).length;
   }
 
+  async addEquipmentCategory(name: string, description = ''): Promise<EquipmentCategory | null> {
+    if (!name.trim()) return null;
+    const created = await this.api.post<EquipmentCategory>('/equipment/categories', {
+      name: name.trim(),
+      description: description.trim() || undefined,
+      active: true,
+    });
+    this.equipmentCategoriesSignal.update((list) =>
+      [...list, created].sort((a, b) => a.name.localeCompare(b.name, 'es')),
+    );
+    return created;
+  }
+
   async addEquipment(form: NewEquipmentForm): Promise<Equipment> {
     const created = await this.api.post<Record<string, unknown>>('/equipment', this.toEquipmentDto(form));
     let mapped = mapEquipment(created);
@@ -380,7 +405,7 @@ export class DataService {
 
   async addDocumentFile(projectId: string, folder: string, file: File): Promise<void> {
     const stored = await this.firebaseStorage.upload(
-      projectDocumentStoragePath(projectId, folder, this.getProject(projectId)?.name),
+      projectDocumentStoragePath(projectId, folder, this.getProject(projectId)?.name, this.tenantId()),
       file,
     );
     const created = await this.api.post<Parameters<typeof mapDocument>[0]>(
@@ -414,7 +439,7 @@ export class DataService {
 
   async addSystemFile(area: string, blob: Blob, fileName: string): Promise<void> {
     const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
-    await this.firebaseStorage.upload(systemStoragePath(area), file);
+    await this.firebaseStorage.upload(systemStoragePath(area, this.tenantId()), file);
   }
 
   async removeDocument(id: string): Promise<void> {
@@ -617,6 +642,7 @@ export class DataService {
       name: form.name.trim(),
       model: form.model?.trim() || undefined,
       proceso: form.proceso.trim(),
+      categoryId: form.categoryId || undefined,
       nota: noteParts.join('\n') || undefined,
       specs: {
         caudal: form.especificacionesTecnicas.trim() || undefined,
@@ -639,6 +665,7 @@ export class DataService {
         category,
         project?.name,
         equipment?.name,
+        this.tenantId(),
       ),
       file,
     );

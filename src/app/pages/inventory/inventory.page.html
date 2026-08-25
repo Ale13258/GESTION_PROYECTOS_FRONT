@@ -31,6 +31,7 @@
   </div>
 
   <div class="toolbar-right">
+    <button class="btn btn-secondary" type="button" (click)="openCategoryModal()">+ Categoría</button>
     <button class="btn btn-secondary" type="button" (click)="openImport()">Importar Excel</button>
     <button class="btn btn-primary" type="button" (click)="openModal()">+ Nuevo Equipo</button>
     <span class="count-label">{{ list().length }} equipos</span>
@@ -202,12 +203,24 @@
         </div>
 
         <div class="field">
-          <label>Proceso</label>
-          <select [(ngModel)]="form.proceso">
-            @for (process of processOptions(); track process) {
-              <option [value]="process">{{ process }}</option>
+          <label>Proceso / Categoría</label>
+          <div class="category-row">
+            @if (data.equipmentCategories().length) {
+              <select [ngModel]="form.categoryId" (ngModelChange)="onCategorySelect($event)">
+                <option value="">Selecciona…</option>
+                @for (cat of data.equipmentCategories(); track cat.id) {
+                  <option [value]="cat.id">{{ cat.name }}</option>
+                }
+              </select>
+            } @else {
+              <select [(ngModel)]="form.proceso">
+                @for (process of processOptions(); track process) {
+                  <option [value]="process">{{ process }}</option>
+                }
+              </select>
             }
-          </select>
+            <button class="btn btn-secondary" type="button" (click)="openCategoryModal()">Nueva</button>
+          </div>
         </div>
 
         <div class="field">
@@ -511,6 +524,28 @@
       } @else {
         <p class="empty-files">Este tipo de archivo no se puede previsualizar en el visor.</p>
       }
+    </div>
+  </div>
+}
+
+@if (showCategoryModal()) {
+  <div class="modal-backdrop" (click)="closeCategoryModal()">
+    <div class="modal" (click)="$event.stopPropagation()" style="max-width: 420px">
+      <h2>Nueva categoría / proceso</h2>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Nombre</label>
+          <input [(ngModel)]="categoryForm.name" placeholder="Ej. Cribado fino, Aireación…" />
+        </div>
+        <div class="field full">
+          <label>Descripción</label>
+          <textarea [(ngModel)]="categoryForm.description" rows="2" placeholder="Opcional"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" (click)="closeCategoryModal()">Cancelar</button>
+        <button class="btn btn-primary" type="button" (click)="createCategory()">Crear</button>
+      </div>
     </div>
   </div>
 }

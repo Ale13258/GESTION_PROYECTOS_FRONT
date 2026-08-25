@@ -1,5 +1,6 @@
 export const environment = {
   production: true,
+
   apiUrl: 'https://gestion-proyectos-back.vercel.app/api/v1',
   firebase: {
     apiKey: 'AIzaSyDacT9cWo8gUL1WqOck1IGyGmNkqkLyJkQ',

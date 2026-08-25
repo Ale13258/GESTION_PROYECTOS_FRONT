@@ -7,6 +7,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { parseBudgetWorkbook, ParsedBudget } from '../../core/budget/parse-budget';
 import { projectDocumentStoragePath } from '../../core/firebase/storage-paths';
+import { AuthService } from '../../core/services/auth.service';
 import { DataService, FilePreview } from '../../core/services/data.service';
 import { UiFeedbackService } from '../../shared/ui-feedback/ui-feedback.service';
 import { CadPreviewComponent } from '../../shared/cad-preview/cad-preview.component';
@@ -39,6 +40,7 @@ export class ProjectDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly data = inject(DataService);
+  private readonly auth = inject(AuthService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly ui = inject(UiFeedbackService);
 
@@ -91,7 +93,7 @@ export class ProjectDetailPage {
     'Reportes',
   ];
 
-  readonly tabs: { id: TabId; label: string }[] = [
+  readonly allTabs: { id: TabId; label: string }[] = [
     { id: 'info', label: 'Información General' },
     { id: 'documentos', label: 'Documentos' },
     { id: 'equipos', label: 'Equipos' },
@@ -102,6 +104,13 @@ export class ProjectDetailPage {
     { id: 'reportes', label: 'Reportes' },
     { id: 'dashboard', label: 'Dashboard del Proyecto' },
   ];
+
+  /** En tenant de materiales no se muestran pestañas de equipos de construcción. */
+  readonly tabs = computed(() => {
+    if (!this.auth.isMaterialsTenant()) return this.allTabs;
+    const keep: TabId[] = ['info', 'documentos', 'presupuesto', 'proveedores', 'reportes', 'dashboard'];
+    return this.allTabs.filter((t) => keep.includes(t.id));
+  });
 
   readonly projectId = toSignal(
     this.route.paramMap.pipe(map((params) => params.get('id') ?? '')),
@@ -145,7 +154,12 @@ export class ProjectDetailPage {
   );
 
   readonly firebaseFolderPath = computed(() =>
-    projectDocumentStoragePath(this.projectId() || '…', this.docFolder(), this.project()?.name),
+    projectDocumentStoragePath(
+      this.projectId() || '…',
+      this.docFolder(),
+      this.project()?.name,
+      this.auth.tenant()?.id,
+    ),
   );
 
   setTab(tab: TabId): void {

@@ -40,6 +40,7 @@ export interface Equipment {
   projectId: string;
   name: string;
   category: string;
+  categoryId?: string;
   /** Proceso del listado técnico (ej. Entrada / Canal de aproximación) */
   proceso: string;
   /** Cantidad (puede incluir nota operativa, ej. 2 (1+1 stand-by)) */
@@ -72,6 +73,7 @@ export interface Equipment {
 export interface NewEquipmentForm {
   projectId: string;
   proceso: string;
+  categoryId: string;
   name: string;
   cantidad: string;
   especificacionesTecnicas: string;
@@ -84,6 +86,14 @@ export interface NewEquipmentForm {
   manufacturer?: string;
   supplier?: string;
   model?: string;
+}
+
+export interface EquipmentCategory {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string;
+  active: boolean;
 }
 
 export interface Supplier {
@@ -172,6 +182,30 @@ export interface DashboardStats {
 /** Rol del sistema: solo admin puede gestionar usuarios. */
 export type UserRole = 'admin' | 'collaborator';
 
+/** Capacidades por tenant (SaaS). Ausencia en API = producto ProManage completo. */
+export type TenantFeature = 'promanage.full' | 'materials.quotes';
+
+export const DEFAULT_TENANT_ID = 'promanage';
+export const DEFAULT_TENANT_FEATURES: TenantFeature[] = ['promanage.full'];
+
+/** Único super admin: puede crear empresas (tenants). */
+export const SUPER_ADMIN_EMAIL = 'aleja13258@gmail.com';
+
+export interface TenantBranding {
+  name: string;
+  tagline?: string;
+  logoUrl?: string;
+}
+
+export interface TenantInfo {
+  id: string;
+  name: string;
+  slug: string;
+  features: TenantFeature[];
+  branding?: TenantBranding;
+  active?: boolean;
+}
+
 export type AppPermission =
   | 'manageUsers'
   | 'manageProjects'
@@ -181,7 +215,8 @@ export type AppPermission =
   | 'manageQuotations'
   | 'manageApprovals'
   | 'viewReports'
-  | 'manageSettings';
+  | 'manageSettings'
+  | 'manageMaterials';
 
 export interface AppUser {
   id: string;
@@ -193,6 +228,82 @@ export interface AppUser {
   mustSetPassword: boolean;
   createdAt: string;
   createdBy: string;
+  tenantId: string;
+}
+
+/** Catálogo / inventario de materiales de construcción (dominio paralelo a Equipment). */
+export interface MaterialCategory {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string;
+  active: boolean;
+}
+
+export interface Material {
+  id: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  unit: string;
+  category: string;
+  categoryId?: string;
+  description?: string;
+  price: number;
+  stockQty: number;
+  active: boolean;
+}
+
+export interface NewMaterialForm {
+  code: string;
+  name: string;
+  unit: string;
+  category: string;
+  categoryId: string;
+  description: string;
+  price: number;
+  stockQty: number;
+}
+
+export interface NewMaterialCategoryForm {
+  name: string;
+  description: string;
+}
+
+export type MaterialQuoteStatus = 'Pendiente' | 'Aprobada' | 'Rechazada' | 'En revisión';
+
+export interface MaterialQuote {
+  id: string;
+  tenantId: string;
+  materialId: string;
+  materialName: string;
+  materialCode: string;
+  supplierId?: string;
+  supplier: string;
+  unitPrice: number;
+  quantity: number;
+  amount: number;
+  unit: string;
+  status: MaterialQuoteStatus;
+  date: string;
+  deliveryDays: number;
+  notes?: string;
+  isFinal?: boolean;
+}
+
+export interface NewMaterialQuoteForm {
+  materialId: string;
+  materialName: string;
+  materialCode: string;
+  supplierId: string;
+  supplier: string;
+  unitPrice: number;
+  quantity: number;
+  unit: string;
+  deliveryDays: number;
+  status: MaterialQuoteStatus;
+  date: string;
+  notes: string;
 }
 
 export interface NewUserForm {
@@ -200,4 +311,16 @@ export interface NewUserForm {
   email: string;
   title: string;
   role: UserRole;
+  /** Si se indica, el usuario se crea en ese tenant (onboarding SaaS). */
+  tenantId?: string;
+}
+
+export interface NewTenantForm {
+  name: string;
+  slug: string;
+  features: TenantFeature[];
+  brandingName: string;
+  brandingTagline: string;
+  adminName: string;
+  adminEmail: string;
 }

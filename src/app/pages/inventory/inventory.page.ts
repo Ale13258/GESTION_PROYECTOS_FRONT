@@ -55,6 +55,7 @@ export class InventoryPage {
   readonly filterStatus = signal('');
   readonly selected = signal<Equipment | null>(null);
   readonly showModal = signal(false);
+  readonly showCategoryModal = signal(false);
   readonly showImport = signal(false);
   readonly importRows = signal<ExcelImportRow[]>([]);
   readonly importFileName = signal('');
@@ -70,6 +71,8 @@ export class InventoryPage {
   readonly formUploadCategory = signal<EquipmentFileCategory>('imagen');
 
   readonly processOptions = computed(() => {
+    const fromCats = this.data.equipmentCategories().map((c) => c.name);
+    if (fromCats.length) return fromCats;
     const fromApi = this.data.plantProcesses();
     return fromApi.length
       ? [...fromApi, 'Otro']
@@ -95,13 +98,13 @@ export class InventoryPage {
   readonly statusOptions = ['Registrado', 'En evaluación', 'Pendiente', 'Aprobado', 'Rechazado'];
 
   form: NewEquipmentForm = this.emptyForm();
+  categoryForm = { name: '', description: '' };
 
-  readonly categories = computed(() => {
-    const set = new Set(this.data.equipment().map((e) => e.category).filter(Boolean));
-    return [...set].sort();
-  });
+  readonly categories = computed(() => this.data.equipmentCategories());
 
   readonly processFilterOptions = computed(() => {
+    const fromCats = this.data.equipmentCategories().map((c) => c.name);
+    if (fromCats.length) return fromCats;
     const set = new Set(this.data.equipment().map((e) => e.proceso).filter(Boolean));
     return [...set].sort();
   });
@@ -138,9 +141,11 @@ export class InventoryPage {
   });
 
   emptyForm(): NewEquipmentForm {
+    const firstCat = this.data.equipmentCategories()[0];
     return {
       projectId: this.data.projects()[0]?.id ?? '',
-      proceso: this.processOptions()[0] ?? '',
+      proceso: firstCat?.name || this.processOptions()[0] || '',
+      categoryId: firstCat?.id || '',
       name: '',
       cantidad: '1',
       especificacionesTecnicas: '',
@@ -151,6 +156,34 @@ export class InventoryPage {
       files: [],
       imagePreview: undefined,
     };
+  }
+
+  onCategorySelect(categoryId: string): void {
+    this.form.categoryId = categoryId;
+    const cat = this.data.equipmentCategories().find((c) => c.id === categoryId);
+    if (cat) this.form.proceso = cat.name;
+  }
+
+  openCategoryModal(): void {
+    this.categoryForm = { name: '', description: '' };
+    this.showCategoryModal.set(true);
+  }
+
+  closeCategoryModal(): void {
+    this.showCategoryModal.set(false);
+  }
+
+  async createCategory(): Promise<void> {
+    if (!this.categoryForm.name.trim()) return;
+    const created = await this.data.addEquipmentCategory(
+      this.categoryForm.name,
+      this.categoryForm.description,
+    );
+    this.closeCategoryModal();
+    if (created) {
+      this.form.categoryId = created.id;
+      this.form.proceso = created.name;
+    }
   }
 
   openModal(): void {
@@ -476,6 +509,9 @@ export class InventoryPage {
       form: {
         projectId,
         proceso: input.proceso || 'Otro',
+        categoryId:
+          this.data.equipmentCategories().find((c) => c.name === (input.proceso || 'Otro'))?.id ||
+          '',
         name: input.name,
         cantidad: input.cantidad,
         especificacionesTecnicas: input.especificacionesTecnicas,

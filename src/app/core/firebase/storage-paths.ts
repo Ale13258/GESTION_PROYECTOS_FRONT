@@ -49,6 +49,20 @@ function slug(value: string): string {
     .replace(/^-|-$/g, '') || 'otros';
 }
 
+/**
+ * Prefijo de storage por tenant.
+ * El tenant default (promanage) conserva rutas legacy `proyectos/...` sin prefijo
+ * para no romper archivos ya registrados.
+ */
+export function tenantStoragePrefix(tenantId?: string | null): string {
+  if (!tenantId || tenantId === 'promanage') return '';
+  return `tenants/${slug(tenantId)}/`;
+}
+
+function withTenant(path: string, tenantId?: string | null): string {
+  return `${tenantStoragePrefix(tenantId)}${path}`;
+}
+
 export function projectDocumentFolderSegment(folder: string): string {
   return PROJECT_FOLDERS[folder] ?? slug(folder);
 }
@@ -68,8 +82,12 @@ export function projectDocumentStoragePath(
   projectId: string,
   folder: string,
   projectName?: string,
+  tenantId?: string | null,
 ): string {
-  return `proyectos/${projectStorageKey(projectId, projectName)}/${projectDocumentFolderSegment(folder)}`;
+  return withTenant(
+    `proyectos/${projectStorageKey(projectId, projectName)}/${projectDocumentFolderSegment(folder)}`,
+    tenantId,
+  );
 }
 
 export function equipmentFileStoragePath(
@@ -78,13 +96,21 @@ export function equipmentFileStoragePath(
   category: string,
   projectName?: string,
   equipmentName?: string,
+  tenantId?: string | null,
 ): string {
   const segment = EQUIPMENT_FOLDERS[category] ?? slug(category);
-  return `proyectos/${projectStorageKey(projectId, projectName)}/equipos/${equipmentStorageKey(equipmentId, equipmentName)}/${segment}`;
+  return withTenant(
+    `proyectos/${projectStorageKey(projectId, projectName)}/equipos/${equipmentStorageKey(equipmentId, equipmentName)}/${segment}`,
+    tenantId,
+  );
 }
 
-export function systemStoragePath(area: string): string {
-  return `sistema/${slug(area)}`;
+export function systemStoragePath(area: string, tenantId?: string | null): string {
+  return withTenant(`sistema/${slug(area)}`, tenantId);
+}
+
+export function materialStoragePath(materialId: string, tenantId?: string | null): string {
+  return withTenant(`materiales/${slug(materialId)}`, tenantId);
 }
 
 function shortId(id: string): string {

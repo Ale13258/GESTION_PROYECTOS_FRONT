@@ -2,7 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { apiErrorMessage } from '../../core/api/http-error';
+import { apiErrorCode, apiErrorMessage } from '../../core/api/http-error';
 import { UiFeedbackService } from '../../shared/ui-feedback/ui-feedback.service';
 
 @Component({
@@ -28,7 +28,7 @@ export class SetPasswordPage implements OnInit {
   private token = '';
 
   async ngOnInit(): Promise<void> {
-    this.token = this.route.snapshot.queryParamMap.get('token') ?? '';
+    this.token = (this.route.snapshot.queryParamMap.get('token') ?? '').trim();
     if (!this.token) {
       this.loading.set(false);
       this.error.set('Falta el enlace de invitación. Pídele uno nuevo al administrador.');
@@ -38,7 +38,12 @@ export class SetPasswordPage implements OnInit {
       const preview = await this.auth.previewInvite(this.token);
       this.invitee.set({ name: preview.name, email: preview.email });
     } catch (error) {
-      this.error.set(apiErrorMessage(error, 'El enlace no es válido o ya venció.'));
+      const code = apiErrorCode(error);
+      this.error.set(
+        code === 'INVITE_INVALID' || code === 'INVITE_EXPIRED'
+          ? 'Este enlace no existe en producción. Crea o reenvía la invitación desde https://promanage-engineering.web.app (no desde localhost).'
+          : apiErrorMessage(error, 'El enlace no es válido o ya venció.'),
+      );
     } finally {
       this.loading.set(false);
     }
@@ -63,7 +68,7 @@ export class SetPasswordPage implements OnInit {
         return;
       }
       this.ui.success('Contraseña creada. Ya puedes usar el sistema.');
-      void this.router.navigateByUrl('/dashboard');
+      void this.router.navigateByUrl(this.auth.homeRoute());
     } finally {
       this.saving.set(false);
     }

@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
+import { featureAnyGuard, featureGuard } from './core/guards/feature.guard';
+import { superAdminGuard } from './core/guards/super-admin.guard';
 import { DashboardPage } from './pages/dashboard/dashboard.page';
 import { ProjectsPage } from './pages/projects/projects.page';
 import { ProjectDetailPage } from './pages/project-detail/project-detail.page';
@@ -15,22 +17,58 @@ import { ComparatorPage } from './pages/comparator/comparator.page';
 import { UsersPage } from './pages/users/users.page';
 import { LoginPage } from './pages/login/login.page';
 import { SetPasswordPage } from './pages/set-password/set-password.page';
+import { MaterialsPage } from './pages/materials/materials.page';
+import { MaterialQuotesPage } from './pages/materials/material-quotes.page';
+import { HomeRedirectPage } from './pages/home-redirect/home-redirect.page';
+import { TenantsPage } from './pages/tenants/tenants.page';
+
+/** Módulos comunes: proyectos, docs, presupuesto, proveedores, reportes… */
+const sharedOpsGuard = featureAnyGuard('promanage.full', 'materials.quotes');
+
+const sharedOpsRoutes: Routes = [
+  { path: 'dashboard', component: DashboardPage, canActivate: [sharedOpsGuard] },
+  { path: 'proyectos', component: ProjectsPage, canActivate: [sharedOpsGuard] },
+  { path: 'proyectos/:id', component: ProjectDetailPage, canActivate: [sharedOpsGuard] },
+  { path: 'documentos', component: DocumentsPage, canActivate: [sharedOpsGuard] },
+  { path: 'aprobaciones', component: ApprovalsPage, canActivate: [sharedOpsGuard] },
+  { path: 'reportes', component: ReportsPage, canActivate: [sharedOpsGuard] },
+];
+
+/** Solo ProManage: flujo de equipos de construcción / trabajo. */
+const equipmentRoutes: Routes = [
+  { path: 'inventario', component: InventoryPage, canActivate: [featureGuard('promanage.full')] },
+  { path: 'matrices', component: MatricesPage, canActivate: [featureGuard('promanage.full')] },
+  { path: 'comparador', component: ComparatorPage, canActivate: [featureGuard('promanage.full')] },
+  { path: 'cotizaciones', component: QuotationsPage, canActivate: [featureGuard('promanage.full')] },
+];
+
+const sharedRoutes: Routes = [
+  { path: 'proveedores', component: SuppliersPage },
+  { path: 'usuarios', component: UsersPage },
+  { path: 'empresas', component: TenantsPage, canActivate: [superAdminGuard] },
+  { path: 'configuracion', component: SettingsPage },
+];
+
+/** Solo tenant de materiales: inventario y cotizaciones de materiales. */
+const materialsRoutes: Routes = [
+  {
+    path: 'materiales',
+    component: MaterialsPage,
+    canActivate: [featureGuard('materials.quotes')],
+  },
+  {
+    path: 'materiales/cotizaciones',
+    component: MaterialQuotesPage,
+    canActivate: [featureGuard('materials.quotes')],
+  },
+];
 
 const appRoutes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
-  { path: 'dashboard', component: DashboardPage },
-  { path: 'proyectos', component: ProjectsPage },
-  { path: 'proyectos/:id', component: ProjectDetailPage },
-  { path: 'inventario', component: InventoryPage },
-  { path: 'documentos', component: DocumentsPage },
-  { path: 'proveedores', component: SuppliersPage },
-  { path: 'matrices', component: MatricesPage },
-  { path: 'comparador', component: ComparatorPage },
-  { path: 'cotizaciones', component: QuotationsPage },
-  { path: 'aprobaciones', component: ApprovalsPage },
-  { path: 'reportes', component: ReportsPage },
-  { path: 'usuarios', component: UsersPage },
-  { path: 'configuracion', component: SettingsPage },
+  { path: '', pathMatch: 'full', component: HomeRedirectPage },
+  ...sharedOpsRoutes,
+  ...equipmentRoutes,
+  ...sharedRoutes,
+  ...materialsRoutes,
 ];
 
 export const routes: Routes = [
@@ -39,6 +77,6 @@ export const routes: Routes = [
   {
     path: '',
     canActivate: [authGuard],
-    children: [...appRoutes, { path: '**', redirectTo: 'dashboard' }],
+    children: [...appRoutes, { path: '**', component: HomeRedirectPage }],
   },
 ];

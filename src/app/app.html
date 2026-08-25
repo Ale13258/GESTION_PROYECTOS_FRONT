@@ -2,47 +2,49 @@
   @if (auth.isAuthenticated()) {
     <aside class="sidebar">
       <div class="brand">
-        <img class="brand-mark" src="favicon.svg" alt="ProManage Engineering" />
+        <img class="brand-mark" [src]="auth.brandLogoUrl()" [alt]="auth.brandName()" />
         <div class="brand-text">
-          <strong>ProManage</strong>
-          <span>ENGINEERING</span>
+          <strong>{{ auth.brandName() }}</strong>
+          <span>{{ auth.brandTagline() }}</span>
         </div>
       </div>
 
       <nav class="nav-tree">
-        <a class="nav-item" routerLink="/dashboard" routerLinkActive="active">
-          <span class="material-symbols-outlined">home</span>
-          <span>Dashboard</span>
-        </a>
+        @if (auth.hasOpsAccess()) {
+          <a class="nav-item" routerLink="/dashboard" routerLinkActive="active">
+            <span class="material-symbols-outlined">home</span>
+            <span>Dashboard</span>
+          </a>
 
-        <div class="nav-group" [class.open]="projectsOpen()">
-          <button class="nav-item nav-parent" type="button" (click)="toggleProjects()">
-            <span class="material-symbols-outlined">folder</span>
-            <span>Proyectos</span>
-            <span class="material-symbols-outlined chevron">
-              {{ projectsOpen() ? 'expand_more' : 'chevron_right' }}
-            </span>
-          </button>
+          <div class="nav-group" [class.open]="projectsOpen()">
+            <button class="nav-item nav-parent" type="button" (click)="toggleProjects()">
+              <span class="material-symbols-outlined">folder</span>
+              <span>Proyectos</span>
+              <span class="material-symbols-outlined chevron">
+                {{ projectsOpen() ? 'expand_more' : 'chevron_right' }}
+              </span>
+            </button>
 
-          @if (projectsOpen()) {
-            <div class="nav-children">
-              <a class="nav-child" routerLink="/proyectos" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-                <i></i>
-                <span>Todos los proyectos</span>
-              </a>
-              @for (project of data.projects(); track project.id) {
-                <a
-                  class="nav-child"
-                  [routerLink]="['/proyectos', project.id]"
-                  routerLinkActive="active"
-                >
+            @if (projectsOpen()) {
+              <div class="nav-children">
+                <a class="nav-child" routerLink="/proyectos" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
                   <i></i>
-                  <span>{{ project.name }}</span>
+                  <span>Todos los proyectos</span>
                 </a>
-              }
-            </div>
-          }
-        </div>
+                @for (project of data.projects(); track project.id) {
+                  <a
+                    class="nav-child"
+                    [routerLink]="['/proyectos', project.id]"
+                    routerLinkActive="active"
+                  >
+                    <i></i>
+                    <span>{{ project.name }}</span>
+                  </a>
+                }
+              </div>
+            }
+          </div>
+        }
 
         @for (item of navItems(); track item.path) {
           <a class="nav-item" [routerLink]="item.path" routerLinkActive="active">
@@ -61,7 +63,7 @@
           <span class="material-symbols-outlined">search</span>
           <input
             type="search"
-            placeholder="Buscar proyectos, equipos, proveedores, cotizaciones..."
+            [placeholder]="searchPlaceholder()"
             [ngModel]="data.searchQuery()"
             (ngModelChange)="onSearch($event)"
           />

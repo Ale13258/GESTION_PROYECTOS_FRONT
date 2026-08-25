@@ -2,16 +2,35 @@ import {
   AppPermission,
   AppUser,
   ApprovalRequest,
+  DEFAULT_TENANT_FEATURES,
+  DEFAULT_TENANT_ID,
   DocumentItem,
   Equipment,
   EquipmentFile,
   EquipmentFileCategory,
   EquipmentStatus,
+  Material,
+  MaterialCategory,
+  MaterialQuote,
   Project,
   Quotation,
   Supplier,
+  TenantFeature,
+  TenantInfo,
   UserRole,
 } from '../models/promanage.models';
+
+export interface TenantDto {
+  id: string;
+  name: string;
+  slug?: string;
+  features?: TenantFeature[];
+  branding?: {
+    name?: string;
+    tagline?: string;
+    logoUrl?: string;
+  };
+}
 
 export interface AuthUserDto {
   id: string;
@@ -26,18 +45,47 @@ export interface AuthUserDto {
   permissions?: AppPermission[];
   inviteEmailSent?: boolean;
   inviteUrl?: string;
+  /** Presente cuando el backend ya es multi-tenant. */
+  tenantId?: string;
+  tenant?: TenantDto;
+  features?: TenantFeature[];
 }
 
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
   user: AuthUserDto;
+  tenant?: TenantDto;
 }
 
 export interface NamedRef {
   id: string;
   name?: string;
   email?: string;
+}
+
+export function mapTenant(dto?: TenantDto | null, fallbackUser?: AuthUserDto): TenantInfo {
+  const id = dto?.id || fallbackUser?.tenantId || DEFAULT_TENANT_ID;
+  const features =
+    dto?.features?.length
+      ? dto.features
+      : fallbackUser?.features?.length
+        ? fallbackUser.features
+        : [...DEFAULT_TENANT_FEATURES];
+  const name = dto?.name || (id === DEFAULT_TENANT_ID ? 'ProManage Engineering' : id);
+  return {
+    id,
+    name,
+    slug: dto?.slug || id,
+    features,
+    branding: dto?.branding
+      ? {
+          name: dto.branding.name || name,
+          tagline: dto.branding.tagline,
+          logoUrl: dto.branding.logoUrl,
+        }
+      : undefined,
+  };
 }
 
 export function mapUser(dto: AuthUserDto): AppUser {
@@ -51,6 +99,96 @@ export function mapUser(dto: AuthUserDto): AppUser {
     mustSetPassword: Boolean(dto.mustSetPassword),
     createdAt: String(dto.createdAt).slice(0, 10),
     createdBy: '',
+    tenantId: dto.tenantId || dto.tenant?.id || DEFAULT_TENANT_ID,
+  };
+}
+
+export function mapMaterialCategory(dto: {
+  id: string;
+  tenantId?: string;
+  name: string;
+  description?: string | null;
+  active?: boolean;
+}): MaterialCategory {
+  return {
+    id: dto.id,
+    tenantId: dto.tenantId || DEFAULT_TENANT_ID,
+    name: dto.name,
+    description: dto.description ?? '',
+    active: dto.active !== false,
+  };
+}
+
+export function mapMaterial(dto: {
+  id: string;
+  tenantId?: string;
+  code: string;
+  name: string;
+  unit: string;
+  category: string;
+  categoryId?: string | null;
+  description?: string | null;
+  price?: number | string | null;
+  stockQty?: number | string | null;
+  active?: boolean;
+}): Material {
+  return {
+    id: dto.id,
+    tenantId: dto.tenantId || DEFAULT_TENANT_ID,
+    code: dto.code,
+    name: dto.name,
+    unit: dto.unit,
+    category: dto.category,
+    categoryId: dto.categoryId || undefined,
+    description: dto.description ?? '',
+    price: Number(dto.price) || 0,
+    stockQty: Number(dto.stockQty) || 0,
+    active: dto.active !== false,
+  };
+}
+
+export function mapMaterialQuote(dto: {
+  id: string;
+  tenantId?: string;
+  materialId: string;
+  materialName?: string;
+  materialCode?: string;
+  material?: { id?: string; name?: string; code?: string; unit?: string };
+  supplierId?: string | null;
+  supplier?: string | { id?: string; name?: string };
+  unitPrice: number;
+  quantity: number;
+  amount?: number;
+  unit?: string;
+  status: MaterialQuote['status'];
+  date: string;
+  deliveryDays?: number;
+  notes?: string | null;
+  isFinal?: boolean;
+}): MaterialQuote {
+  const supplierName =
+    typeof dto.supplier === 'string' ? dto.supplier : (dto.supplier?.name ?? '—');
+  const supplierId =
+    dto.supplierId || (typeof dto.supplier === 'object' ? dto.supplier?.id : undefined);
+  const unitPrice = Number(dto.unitPrice) || 0;
+  const quantity = Number(dto.quantity) || 0;
+  return {
+    id: dto.id,
+    tenantId: dto.tenantId || DEFAULT_TENANT_ID,
+    materialId: dto.materialId || dto.material?.id || '',
+    materialName: dto.materialName || dto.material?.name || '—',
+    materialCode: dto.materialCode || dto.material?.code || '',
+    supplierId,
+    supplier: supplierName,
+    unitPrice,
+    quantity,
+    amount: dto.amount != null ? Number(dto.amount) : unitPrice * quantity,
+    unit: dto.unit || dto.material?.unit || 'und',
+    status: dto.status,
+    date: String(dto.date).slice(0, 10),
+    deliveryDays: Number(dto.deliveryDays) || 0,
+    notes: dto.notes ?? undefined,
+    isFinal: dto.isFinal,
   };
 }
 
@@ -146,6 +284,7 @@ export function mapEquipment(dto: Record<string, unknown>): Equipment {
     projectId: String(dto['projectId']),
     name: String(dto['name'] ?? ''),
     category: String(dto['proceso'] ?? ''),
+    categoryId: dto['categoryId'] ? String(dto['categoryId']) : undefined,
     proceso: String(dto['proceso'] ?? ''),
     cantidad: '',
     especificacionesTecnicas: specs['caudal'] != null ? String(specs['caudal']) : '',
