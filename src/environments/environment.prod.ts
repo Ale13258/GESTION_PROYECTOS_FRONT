@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
-
-  apiUrl: 'https://gestion-proyectos-back.vercel.app/api/v1',
+  apiUrl: 'http://localhost:3000/api/v1',
+  //apiUrl: 'https://gestion-proyectos-back.vercel.app/api/v1',
   firebase: {
     apiKey: 'AIzaSyDacT9cWo8gUL1WqOck1IGyGmNkqkLyJkQ',
     authDomain: 'preubaproyecto.firebaseapp.com',

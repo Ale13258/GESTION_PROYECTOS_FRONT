@@ -216,7 +216,13 @@ export class AuthService {
     return { inviteEmailSent: Boolean(created.inviteEmailSent), inviteUrl: created.inviteUrl };
   }
 
-  async previewInvite(token: string): Promise<{ name: string; email: string; role: UserRole }> {
+  async previewInvite(token: string): Promise<{
+    name: string;
+    email: string;
+    role: UserRole;
+    tenant?: TenantInfo;
+    features?: TenantFeature[];
+  }> {
     return this.api.get('/auth/invite', { token: token.trim() }, true);
   }
 

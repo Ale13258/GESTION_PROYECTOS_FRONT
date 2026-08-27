@@ -1,6 +1,6 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NewTenantForm, TenantFeature, TenantInfo } from '../../core/models/promanage.models';
+import { NewTenantForm, NewUserForm, TenantFeature, TenantInfo } from '../../core/models/promanage.models';
 import { AuthService } from '../../core/services/auth.service';
 import { TenantsService } from '../../core/services/tenants.service';
 import { apiErrorMessage } from '../../core/api/http-error';
@@ -18,11 +18,14 @@ export class TenantsPage implements OnInit {
   private readonly ui = inject(UiFeedbackService);
 
   readonly showModal = signal(false);
+  readonly showInviteModal = signal(false);
   readonly busy = signal(false);
   readonly error = signal('');
   readonly lastInvite = signal<{ email: string; url: string; emailSent: boolean } | null>(null);
+  readonly inviteTenant = signal<TenantInfo | null>(null);
 
   form: NewTenantForm = this.emptyForm();
+  inviteForm: NewUserForm = this.emptyInviteForm();
   featureMaterials = true;
   featurePromanage = false;
 
@@ -40,6 +43,79 @@ export class TenantsPage implements OnInit {
       adminName: '',
       adminEmail: '',
     };
+  }
+
+  emptyInviteForm(): NewUserForm {
+    return {
+      name: '',
+      email: '',
+      title: 'Coordinador de materiales',
+      role: 'collaborator',
+    };
+  }
+
+  isMaterialsTenant(tenant: TenantInfo): boolean {
+    return tenant.features.includes('materials.quotes') && !tenant.features.includes('promanage.full');
+  }
+
+  defaultTitleForTenant(tenant: TenantInfo): string {
+    return this.isMaterialsTenant(tenant) ? 'Coordinador de materiales' : 'Ingeniero de Proyectos';
+  }
+
+  openInviteModal(tenant: TenantInfo): void {
+    if (!this.auth.isSuperAdmin()) return;
+    this.inviteTenant.set(tenant);
+    this.inviteForm = {
+      ...this.emptyInviteForm(),
+      title: this.defaultTitleForTenant(tenant),
+    };
+    this.error.set('');
+    this.showInviteModal.set(true);
+  }
+
+  closeInviteModal(): void {
+    this.showInviteModal.set(false);
+    this.inviteTenant.set(null);
+    this.error.set('');
+  }
+
+  async inviteUserToTenant(): Promise<void> {
+    const tenant = this.inviteTenant();
+    if (!tenant || this.busy()) return;
+    if (!this.inviteForm.name.trim() || !this.inviteForm.email.trim()) {
+      this.error.set('Nombre y correo son obligatorios.');
+      return;
+    }
+    this.busy.set(true);
+    this.error.set('');
+    try {
+      const created = await this.auth.addCollaborator({
+        ...this.inviteForm,
+        tenantId: tenant.id,
+      });
+      if (!created) {
+        this.error.set('No se pudo crear el usuario.');
+        return;
+      }
+      this.closeInviteModal();
+      if (created.inviteEmailSent) {
+        this.ui.success(`Invitación enviada a ${created.email} en ${tenant.name}.`);
+        this.lastInvite.set(null);
+      } else if (created.inviteUrl) {
+        this.lastInvite.set({
+          email: created.email,
+          url: created.inviteUrl,
+          emailSent: false,
+        });
+        this.ui.toast('Usuario creado. Copia el enlace si el correo no salió.', 'warning');
+      } else {
+        this.ui.success(`Usuario creado en ${tenant.name}.`);
+      }
+    } catch (error) {
+      this.error.set(apiErrorMessage(error, 'No se pudo invitar al usuario.'));
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   openModal(): void {

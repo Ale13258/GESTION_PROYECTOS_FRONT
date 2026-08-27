@@ -77,6 +77,13 @@
                     <button
                       class="btn btn-secondary btn-sm"
                       type="button"
+                      (click)="openInviteModal(tenant)"
+                    >
+                      + Usuario
+                    </button>
+                    <button
+                      class="btn btn-secondary btn-sm"
+                      type="button"
                       (click)="toggleActive(tenant)"
                     >
                       {{ tenant.active === false ? 'Activar' : 'Desactivar' }}
@@ -160,6 +167,7 @@
         <div class="field">
           <label>Admin (correo)</label>
           <input type="email" [(ngModel)]="form.adminEmail" placeholder="admin@empresa.com" />
+          <small class="hint">Si lo indicas, se envía invitación por correo para crear contraseña.</small>
         </div>
       </div>
 
@@ -171,6 +179,61 @@
         <button class="btn btn-secondary" type="button" (click)="closeModal()">Cancelar</button>
         <button class="btn btn-primary" type="button" [disabled]="busy()" (click)="createTenant()">
           {{ busy() ? 'Creando…' : 'Crear empresa' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showInviteModal()) {
+  <div class="modal-backdrop" (click)="closeInviteModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>Invitar usuario</h2>
+      <p class="intro">
+        @if (inviteTenant(); as tenant) {
+          Crea un usuario en <strong>{{ tenant.name }}</strong>, elige su rol y envía la invitación por
+          correo para que cree su contraseña.
+        }
+      </p>
+
+      <div class="form-grid">
+        <div class="field full">
+          <label>Nombre completo</label>
+          <input [(ngModel)]="inviteForm.name" placeholder="Ej. Sofía Vargas" />
+        </div>
+        <div class="field">
+          <label>Correo</label>
+          <input type="email" [(ngModel)]="inviteForm.email" placeholder="usuario@empresa.com" />
+        </div>
+        <div class="field">
+          <label>Cargo</label>
+          <input [(ngModel)]="inviteForm.title" placeholder="Coordinador de materiales" />
+        </div>
+        <div class="field full">
+          <label>Rol</label>
+          <select [(ngModel)]="inviteForm.role">
+            <option value="collaborator">Colaborador</option>
+            <option value="admin">Administrador</option>
+          </select>
+          <small class="hint">
+            @if (inviteForm.role === 'admin') {
+              Podrá crear usuarios y gestionar todos los módulos de la empresa.
+            } @else {
+              Acceso operativo a proyectos, inventario, cotizaciones y aprobaciones. No podrá crear
+              usuarios.
+            }
+          </small>
+        </div>
+      </div>
+
+      @if (error()) {
+        <p class="error">{{ error() }}</p>
+      }
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" (click)="closeInviteModal()">Cancelar</button>
+        <button class="btn btn-primary" type="button" [disabled]="busy()" (click)="inviteUserToTenant()">
+          {{ busy() ? 'Enviando…' : 'Crear y enviar invitación' }}
         </button>
       </div>
     </div>

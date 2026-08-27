@@ -53,11 +53,16 @@ export class TenantsService {
     let inviteUrl: string | undefined;
     let inviteEmailSent: boolean | undefined;
     let inviteError: string | undefined;
-    if (form.adminEmail.trim() && form.adminName.trim()) {
+    if (form.adminEmail.trim()) {
+      const adminEmail = form.adminEmail.trim().toLowerCase();
+      const adminName =
+        form.adminName.trim() ||
+        adminEmail.split('@')[0]?.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) ||
+        'Administrador';
       try {
         const created = await this.auth.addCollaborator({
-          name: form.adminName.trim(),
-          email: form.adminEmail.trim(),
+          name: adminName,
+          email: adminEmail,
           title: 'Administrador',
           role: 'admin',
           tenantId: tenant.id,

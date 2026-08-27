@@ -25,9 +25,16 @@ export class UsersPage {
     return {
       name: '',
       email: '',
-      title: 'Ingeniero de Proyectos',
+      title: this.auth.isMaterialsTenant() ? 'Coordinador de materiales' : 'Ingeniero de Proyectos',
       role: 'collaborator',
     };
+  }
+
+  collaboratorHint(): string {
+    if (this.auth.isMaterialsTenant()) {
+      return 'Acceso operativo a proyectos, inventario de materiales, cotizaciones y aprobaciones. No podrá crear usuarios.';
+    }
+    return 'Acceso operativo a proyectos, inventario técnico, cotizaciones y aprobaciones. No podrá crear usuarios.';
   }
 
   openModal(): void {

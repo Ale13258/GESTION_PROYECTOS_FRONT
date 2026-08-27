@@ -3,8 +3,8 @@
     <p class="eyebrow">Administración</p>
     <h1>Usuarios</h1>
     <p>
-      Crea usuarios, asígnales un rol y ellos reciben un correo para crear su contraseña y entrar al
-      sistema.
+      Crea usuarios, asígnales un rol y ellos reciben un correo para crear su contraseña y entrar a
+      {{ auth.brandName() }}.
     </p>
   </div>
   @if (auth.canManageUsers()) {
@@ -17,7 +17,11 @@
     <h2>Acceso restringido</h2>
     <p>
       Solo el administrador puede crear y gestionar usuarios. Tú puedes subir información,
-      editar inventario, cotizaciones y el resto de módulos operativos.
+      @if (auth.isMaterialsTenant()) {
+        editar inventario de materiales, cotizaciones y el resto de módulos operativos.
+      } @else {
+        editar inventario, cotizaciones y el resto de módulos operativos.
+      }
     </p>
   </article>
 } @else {
@@ -136,8 +140,7 @@
             @if (form.role === 'admin') {
               Podrá crear y gestionar usuarios, además de todos los módulos.
             } @else {
-              Acceso operativo a proyectos, inventario, cotizaciones y aprobaciones. No podrá crear
-              usuarios.
+              {{ collaboratorHint() }}
             }
           </small>
         </div>

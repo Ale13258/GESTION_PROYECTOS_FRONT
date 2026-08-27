@@ -20,7 +20,10 @@ export class SetPasswordPage implements OnInit {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly error = signal('');
-  readonly invitee = signal<{ name: string; email: string } | null>(null);
+  readonly invitee = signal<{ name: string; email: string; role?: string } | null>(null);
+  readonly brandName = signal('ProManage');
+  readonly brandTagline = signal('ENGINEERING');
+  readonly materialsOnly = signal(false);
   readonly showPassword = signal(false);
 
   password = '';
@@ -36,7 +39,17 @@ export class SetPasswordPage implements OnInit {
     }
     try {
       const preview = await this.auth.previewInvite(this.token);
-      this.invitee.set({ name: preview.name, email: preview.email });
+      this.invitee.set({ name: preview.name, email: preview.email, role: preview.role });
+      const features = preview.features ?? preview.tenant?.features ?? [];
+      const materialsOnly =
+        features.includes('materials.quotes') && !features.includes('promanage.full');
+      this.materialsOnly.set(materialsOnly);
+      this.brandName.set(
+        preview.tenant?.branding?.name || preview.tenant?.name || 'ProManage Engineering',
+      );
+      this.brandTagline.set(
+        preview.tenant?.branding?.tagline || (materialsOnly ? 'MATERIALES' : 'ENGINEERING'),
+      );
     } catch (error) {
       const code = apiErrorCode(error);
       this.error.set(
@@ -47,6 +60,13 @@ export class SetPasswordPage implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  inviteHint(): string {
+    if (this.materialsOnly()) {
+      return 'Con tu rol podrás trabajar en proyectos, materiales, cotizaciones y aprobaciones.';
+    }
+    return 'Con el rol que te asignaron podrás trabajar en los módulos de tu equipo.';
   }
 
   async submit(): Promise<void> {
